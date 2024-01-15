@@ -50,12 +50,15 @@ export const daysAtom = atom(
 );
 
 export const useDays = (): [Array<Day>, createDay: (d: Day) => void] => {
-  const [days, setDays] = useAtom(daysAtom);
+  const [days, setDays] = useAtom(daysPersistedAtom);
   const createNewDay = useCallback(
     (day: Day) => {
-      setDays([...days, day]);
+      setDays((state) => ({
+        ...state,
+        days: [...state.days, day],
+      }));
     },
     [setDays],
   );
-  return [days, createNewDay];
+  return [days.days, createNewDay];
 };
