@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { atom } from 'jotai';
-import { useAtom } from 'jotai';
+import { atomWithStorage, createJSONStorage, loadable } from 'jotai/utils';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { IsoDate, IsoDateTime } from '../time';
 
@@ -41,51 +42,48 @@ const DEFAULT_DAY = (date: IsoDate): Day => ({
   poops: [],
 });
 
-type DaysMap = Partial<Record<IsoDate, Day>>;
-export const daysPersistedAtom = atom<{
+interface StoredDays {
   version: 0;
   days: DaysMap;
-}>({
-  version: 0,
-  days: {},
-});
+}
 
-export const daysAtom = atom(
-  (get) => get(daysPersistedAtom).days,
-  (_get, set, newDays: DaysMap) => {
-    set(daysPersistedAtom, {
-      version: 0,
-      days: newDays,
-    });
+type DaysMap = Partial<Record<IsoDate, Day>>;
+// TODO: add validation when reading from storage
+const storage = createJSONStorage<StoredDays>(() => AsyncStorage);
+export const daysPersistedAtom = atomWithStorage<StoredDays>(
+  'days',
+  {
+    version: 0,
+    days: {},
   },
+  storage,
 );
-
-export const useDays = (): [DaysMap, createDay: (d: Day) => void] => {
-  const [days, setDays] = useAtom(daysPersistedAtom);
-  const createNewDay = useCallback(
-    (day: Day) => {
-      setDays((state) => ({
-        ...state,
-        days: { ...state.days, [day.date]: day },
-      }));
-    },
-    [setDays],
-  );
-  return [days.days, createNewDay];
-};
+const daysPersistedAtomLoadable = loadable(daysPersistedAtom);
 
 export const useDayAtom = (date: IsoDate) => {
   return useMemo(() => {
     return atom(
-      (get) => get(daysPersistedAtom).days[date] ?? DEFAULT_DAY(date),
+      (get) => {
+        const res = get(daysPersistedAtomLoadable);
+        if (res.state === 'loading' || res.state === 'hasError') {
+          return res;
+        }
+        return {
+          ...res,
+          data: res.data.days[date] ?? DEFAULT_DAY(date),
+        };
+      },
       (_get, set, newDay: Day) => {
-        set(daysPersistedAtom, (s) => ({
-          ...s,
-          days: {
-            ...s.days,
-            [date]: newDay,
-          },
-        }));
+        set(daysPersistedAtom, async (stateP) => {
+          const state = await stateP;
+          return {
+            ...state,
+            days: {
+              ...state.days,
+              [date]: newDay,
+            },
+          };
+        });
       },
     );
   }, [date]);

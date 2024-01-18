@@ -15,6 +15,7 @@
     "@gorhom/bottom-sheet": "^4",
     "@js-joda/core": "^5.6.1",
     "@js-joda/timezone": "^2.18.2",
+    "@react-native-async-storage/async-storage": "^1.18.2",
     "@types/react": "~18.2.14",
     "expo": "~49.0.15",
     "expo-status-bar": "~1.6.0",

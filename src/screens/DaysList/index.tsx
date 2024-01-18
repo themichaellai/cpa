@@ -1,10 +1,17 @@
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useMemo,
+  useState,
+  Suspense,
+} from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 
 import { IsoDate } from '../../time';
 import { PURPLE } from '../../colors';
+import Text from '../../components/Text';
 import DaySheet from './DaySheet';
 
 type CalendarProps = ComponentProps<typeof Calendar>;
@@ -52,7 +59,9 @@ const DaysList: React.FC = () => {
         </View>
       </SafeAreaView>
       {calendarBottom == null ? null : (
-        <DaySheet topY={calendarBottom} date={selectedDate} />
+        <Suspense fallback={<Text size="sm">loading</Text>}>
+          <DaySheet topY={calendarBottom} date={selectedDate} />
+        </Suspense>
       )}
     </>
   );

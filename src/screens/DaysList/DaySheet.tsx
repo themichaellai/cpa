@@ -3,7 +3,7 @@ import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useAtom } from 'jotai';
 import { Either } from 'purify-ts/Either';
-import { Maybe } from 'purify-ts/Maybe';
+import { Maybe, Just, Nothing } from 'purify-ts/Maybe';
 
 import { PURPLE } from '../../colors';
 import { now, IsoDate, parseDateTime, IsoDateTime } from '../../time';
@@ -23,10 +23,9 @@ const dateToDisplay = (date: IsoDate): string => {
 const formatTime = (dt: IsoDateTime): Either<Error, string> => {
   const parsed = parseDateTime(dt);
   return parsed.map((dateTime) => {
-    // Pick out hour, min, am/pm without format function
-    return `${dateTime.hour()}:${dateTime.minute()} ${
-      dateTime.hour() < 12 ? 'AM' : 'PM'
-    }`;
+    const minStr = dateTime.minute().toString().padStart(2, '0');
+    const amPmStr = dateTime.hour() < 12 ? 'am' : 'pm';
+    return `${dateTime.hour()}:${minStr} ${amPmStr}`;
   });
 };
 
@@ -36,7 +35,14 @@ const DaySheet: React.FC<{
 }> = ({ topY, date }) => {
   const dimensions = useWindowDimensions();
   const dayAtom = useDayAtom(date);
-  const [day, setDay] = useAtom(dayAtom);
+  const [dayStateLoadable, setDay] = useAtom(dayAtom);
+  const day = useMemo(
+    () =>
+      dayStateLoadable.state === 'hasData'
+        ? Just(dayStateLoadable.data)
+        : Nothing,
+    [dayStateLoadable],
+  );
 
   const snapPoints = useMemo(
     () => [dimensions.height - topY],
@@ -44,23 +50,29 @@ const DaySheet: React.FC<{
   );
 
   const setWakeUpToNow = useCallback(() => {
-    setDay({
-      ...day,
-      wakeUp: {
-        time: now(),
-      },
+    day.ifJust((day) => {
+      setDay({
+        ...day,
+        wakeUp: {
+          time: now(),
+        },
+      });
     });
   }, [day, setDay]);
   const unsetWakeUp = useCallback(() => {
-    setDay({
-      ...day,
-      wakeUp: null,
+    day.ifJust((day) => {
+      setDay({
+        ...day,
+        wakeUp: null,
+      });
     });
   }, [day, setDay]);
 
   const wakeUpTableValueEl = useMemo(
     () =>
-      Maybe.fromNullable(day.wakeUp)
+      day
+        .map((d) => d.wakeUp)
+        .chain(Maybe.fromNullable)
         .toEither('no wake up set')
         .chain((wakeUp) => formatTime(wakeUp.time))
         .caseOf({
