@@ -27,5 +27,7 @@ module.exports = {
     'react/react-in-jsx-scope': 'off',
     'react-native/no-color-literals': 'off',
     'react-hooks/exhaustive-deps': 'error',
+    // Seems like this rule doesn't work too well with typescript
+    'react/prop-types': 'off',
   },
 };

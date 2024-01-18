@@ -1,24 +1,26 @@
 import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import { LayoutChangeEvent, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 
-//import { IsoDate, useDays } from '../../store/days';
+import { IsoDate } from '../../time';
 import { PURPLE } from '../../colors';
+import DaySheet from './DaySheet';
 
 type CalendarProps = ComponentProps<typeof Calendar>;
 const calendarTheme: CalendarProps['theme'] = {
   todayTextColor: PURPLE.P4,
   agendaTodayColor: PURPLE.P4,
   textDayFontWeight: '500',
-  selectedDayBackgroundColor: PURPLE.P8,
-  selectedDayTextColor: PURPLE.P4,
+  selectedDayBackgroundColor: PURPLE.P10,
+  selectedDayTextColor: PURPLE.P2,
   textMonthFontWeight: '500',
   arrowColor: PURPLE.P4,
 };
 
 const DaysList: React.FC = () => {
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split('T')[0],
+  const [selectedDate, setSelectedDate] = useState<IsoDate>(
+    new Date().toISOString().split('T')[0] as IsoDate,
   );
 
   const markedDates = useMemo(
@@ -28,19 +30,43 @@ const DaysList: React.FC = () => {
     [selectedDate],
   );
 
-  const onDayPress = useCallback<CalendarProps['onDayPress']>((day) => {
-    setSelectedDate(day.dateString);
-  }, []);
+  const onDayPress = useCallback<NonNullable<CalendarProps['onDayPress']>>(
+    (day) => {
+      setSelectedDate(day.dateString as IsoDate);
+    },
+    [],
+  );
+
+  const { bottom: calendarBottom, onLayout: onCalendarLayout } =
+    useElementBottom();
 
   return (
-    <SafeAreaView>
-      <Calendar
-        theme={calendarTheme}
-        onDayPress={onDayPress}
-        markedDates={markedDates}
-      />
-    </SafeAreaView>
+    <>
+      <SafeAreaView>
+        <View onLayout={onCalendarLayout}>
+          <Calendar
+            theme={calendarTheme}
+            onDayPress={onDayPress}
+            markedDates={markedDates}
+          />
+        </View>
+      </SafeAreaView>
+      {calendarBottom == null ? null : (
+        <DaySheet topY={calendarBottom} date={selectedDate} />
+      )}
+    </>
   );
+};
+
+const useElementBottom = () => {
+  const [bottom, setBottom] = useState<number | null>(null);
+  const onLayout = useCallback(
+    ({ nativeEvent: { layout } }: LayoutChangeEvent) => {
+      setBottom(layout.y + layout.height);
+    },
+    [setBottom],
+  );
+  return { bottom, onLayout };
 };
 
 export default DaysList;

@@ -1,47 +1,58 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { atom } from 'jotai';
 import { useAtom } from 'jotai';
 
-export type IsoDateTime = string & { __type: 'isoDateTime' };
-export type IsoDate = string & { __type: 'isoDate' };
+import { IsoDate, IsoDateTime } from '../time';
 
 interface Poop {
   time: IsoDateTime;
-  duringRun: boolean;
+  run: {
+    timeIntoRunMinutes: number;
+  } | null;
 }
 
 interface Dinner {
   time: IsoDateTime;
-  size: 'small' | 'big';
+  size: 'regular' | 'big';
 }
 
 interface Coffee {
   time: IsoDateTime;
+  amount: number;
 }
 
 interface WakeUp {
   time: IsoDateTime;
 }
 
-interface Day {
-  day: IsoDate;
+export interface Day {
+  date: IsoDate;
   wakeUp: WakeUp | null;
   coffee: Coffee | null;
   dinner: Dinner | null;
   poops: Array<Poop>;
 }
 
+const DEFAULT_DAY = (date: IsoDate): Day => ({
+  date,
+  wakeUp: null,
+  coffee: null,
+  dinner: null,
+  poops: [],
+});
+
+type DaysMap = Partial<Record<IsoDate, Day>>;
 export const daysPersistedAtom = atom<{
   version: 0;
-  days: Array<Day>;
+  days: DaysMap;
 }>({
   version: 0,
-  days: [],
+  days: {},
 });
 
 export const daysAtom = atom(
   (get) => get(daysPersistedAtom).days,
-  (_get, set, newDays: Array<Day>) => {
+  (_get, set, newDays: DaysMap) => {
     set(daysPersistedAtom, {
       version: 0,
       days: newDays,
@@ -49,16 +60,33 @@ export const daysAtom = atom(
   },
 );
 
-export const useDays = (): [Array<Day>, createDay: (d: Day) => void] => {
+export const useDays = (): [DaysMap, createDay: (d: Day) => void] => {
   const [days, setDays] = useAtom(daysPersistedAtom);
   const createNewDay = useCallback(
     (day: Day) => {
       setDays((state) => ({
         ...state,
-        days: [...state.days, day],
+        days: { ...state.days, [day.date]: day },
       }));
     },
     [setDays],
   );
   return [days.days, createNewDay];
+};
+
+export const useDayAtom = (date: IsoDate) => {
+  return useMemo(() => {
+    return atom(
+      (get) => get(daysPersistedAtom).days[date] ?? DEFAULT_DAY(date),
+      (_get, set, newDay: Day) => {
+        set(daysPersistedAtom, (s) => ({
+          ...s,
+          days: {
+            ...s.days,
+            [date]: newDay,
+          },
+        }));
+      },
+    );
+  }, [date]);
 };
