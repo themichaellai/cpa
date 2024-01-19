@@ -4,6 +4,7 @@ import BottomSheet from '@gorhom/bottom-sheet';
 import { useAtom } from 'jotai';
 import { Either } from 'purify-ts/Either';
 import { Maybe, Just, Nothing } from 'purify-ts/Maybe';
+import { LocalDate, convert } from '@js-joda/core';
 
 import { PURPLE } from '../../colors';
 import { now, IsoDate, parseDateTime, IsoDateTime } from '../../time';
@@ -12,12 +13,13 @@ import Button from '../../components/Button';
 import { useDayAtom } from '../../store/days';
 
 const dateToDisplay = (date: IsoDate): string => {
-  const dateObj = new Date(date);
-  return dateObj.toLocaleDateString('en-US', {
+  const dateObj = LocalDate.parse(date);
+  const res = convert(dateObj).toDate().toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
+  return res;
 };
 
 const formatTime = (dt: IsoDateTime): Either<Error, string> => {
@@ -29,12 +31,8 @@ const formatTime = (dt: IsoDateTime): Either<Error, string> => {
   });
 };
 
-const DaySheet: React.FC<{
-  topY: number;
-  date: IsoDate;
-}> = ({ topY, date }) => {
-  const dimensions = useWindowDimensions();
-  const dayAtom = useDayAtom(date);
+const useDay = (d: IsoDate) => {
+  const dayAtom = useDayAtom(d);
   const [dayStateLoadable, setDay] = useAtom(dayAtom);
   const day = useMemo(
     () =>
@@ -43,6 +41,15 @@ const DaySheet: React.FC<{
         : Nothing,
     [dayStateLoadable],
   );
+  return [day, setDay] as const;
+};
+
+const DaySheet: React.FC<{
+  topY: number;
+  date: IsoDate;
+}> = ({ topY, date }) => {
+  const dimensions = useWindowDimensions();
+  const [day, setDay] = useDay(date);
 
   const snapPoints = useMemo(
     () => [dimensions.height - topY],
