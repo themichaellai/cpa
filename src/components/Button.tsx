@@ -1,4 +1,4 @@
-import { ComponentProps } from 'react';
+import { ComponentProps, memo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import Text from './Text';
@@ -27,4 +27,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Button;
+export default memo(Button);

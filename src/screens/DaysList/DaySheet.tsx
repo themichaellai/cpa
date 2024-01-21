@@ -10,7 +10,8 @@ import { PURPLE } from '../../colors';
 import { now, IsoDate, parseDateTime, IsoDateTime } from '../../time';
 import Text from '../../components/Text';
 import Button from '../../components/Button';
-import { useDayAtom } from '../../store/days';
+import { Dinner, useDayAtom } from '../../store/days';
+import DinnerPicker from './DinnerPicker';
 
 const dateToDisplay = (date: IsoDate): string => {
   const dateObj = LocalDate.parse(date);
@@ -49,12 +50,12 @@ const DaySheet: React.FC<{
   date: IsoDate;
 }> = ({ topY, date }) => {
   const dimensions = useWindowDimensions();
-  const [day, setDay] = useDay(date);
-
   const snapPoints = useMemo(
     () => [dimensions.height - topY],
     [topY, dimensions.height],
   );
+
+  const [day, setDay] = useDay(date);
 
   const setWakeUpToNow = useCallback(() => {
     day.ifJust((day) => {
@@ -105,6 +106,26 @@ const DaySheet: React.FC<{
     [day, setWakeUpToNow, unsetWakeUp],
   );
 
+  const dinner = useMemo(() => day.map((d) => d.dinner).orDefault(null), [day]);
+  const setDinnerSize = useCallback(
+    (size: Dinner['size']): void => {
+      day
+        .map((d) => {
+          return {
+            ...d,
+            dinner: {
+              ...d.dinner,
+              time: d.dinner?.time ?? null,
+              size: d.dinner?.size === size ? null : size,
+            },
+          };
+        })
+        .ifJust((d) => {
+          setDay(d);
+        });
+    },
+    [day, setDay],
+  );
   return (
     <BottomSheet index={0} snapPoints={snapPoints} style={styles.container}>
       <Text size="lg" style={styles.title}>
@@ -121,17 +142,17 @@ const DaySheet: React.FC<{
           <Text size="sm">Dinner</Text>
         </View>
         <View style={styles.formValue}>
-          <Text size="sm">World</Text>
+          <DinnerPicker dinner={dinner} setSize={setDinnerSize} />
         </View>
       </View>
-      <View style={styles.formContainer}>
+      {/*<View style={styles.formContainer}>
         <View style={styles.formLabel}>
           <Text size="sm">Coffee</Text>
         </View>
         <View style={styles.formValue}>
           <Text size="sm">World</Text>
         </View>
-      </View>
+      </View>*/}
       <View style={styles.formContainer}>
         <View style={styles.formLabel}>
           <Text size="sm">Poops</Text>

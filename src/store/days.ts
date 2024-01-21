@@ -12,14 +12,14 @@ interface Poop {
   } | null;
 }
 
-interface Dinner {
-  time: IsoDateTime;
-  size: 'regular' | 'big';
+export interface Dinner {
+  time: IsoDateTime | null;
+  size: 'regular' | 'big' | null;
 }
 
 interface Coffee {
-  time: IsoDateTime;
-  amount: number;
+  time: IsoDateTime | null;
+  amount: number | null;
 }
 
 interface WakeUp {
