@@ -6,6 +6,7 @@ import {
   Suspense,
 } from 'react';
 import { LayoutChangeEvent, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
 
 import { IsoDate } from '../../time';
@@ -46,15 +47,18 @@ const DaysList: React.FC = () => {
   const { bottom: calendarBottom, onLayout: onCalendarLayout } =
     useElementBottom();
 
+  const safeAreaEdges = useMemo(() => ['top' as const], []);
   return (
     <>
-      <View onLayout={onCalendarLayout}>
-        <Calendar
-          theme={calendarTheme}
-          onDayPress={onDayPress}
-          markedDates={markedDates}
-        />
-      </View>
+      <SafeAreaView edges={safeAreaEdges}>
+        <View onLayout={onCalendarLayout}>
+          <Calendar
+            theme={calendarTheme}
+            onDayPress={onDayPress}
+            markedDates={markedDates}
+          />
+        </View>
+      </SafeAreaView>
       {calendarBottom == null ? null : (
         <Suspense fallback={<Text size="sm">loading</Text>}>
           <DaySheet topY={calendarBottom} date={selectedDate} />
