@@ -8,6 +8,7 @@ import {
 import { LayoutChangeEvent, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar } from 'react-native-calendars';
+import { LocalDate } from '@js-joda/core';
 
 import { IsoDate } from '../../time';
 import { PURPLE } from '../../colors';
@@ -27,7 +28,7 @@ const calendarTheme: CalendarProps['theme'] = {
 
 const DaysList: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<IsoDate>(
-    new Date().toISOString().split('T')[0] as IsoDate,
+    LocalDate.now().toString() as IsoDate,
   );
 
   const markedDates = useMemo(
