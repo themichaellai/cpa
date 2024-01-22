@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { atom } from 'jotai';
+import { atom, useAtom } from 'jotai';
 import { atomWithStorage, createJSONStorage, loadable } from 'jotai/utils';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { IsoDate, IsoDateTime } from '../time';
+import { Just, Nothing } from 'purify-ts/Maybe';
 
-interface Poop {
+export interface Poop {
   time: IsoDateTime;
   run: {
     timeIntoRunMinutes: number;
@@ -87,4 +88,17 @@ export const useDayAtom = (date: IsoDate) => {
       },
     );
   }, [date]);
+};
+
+export const useDay = (d: IsoDate) => {
+  const dayAtom = useDayAtom(d);
+  const [dayStateLoadable, setDay] = useAtom(dayAtom);
+  const day = useMemo(
+    () =>
+      dayStateLoadable.state === 'hasData'
+        ? Just(dayStateLoadable.data)
+        : Nothing,
+    [dayStateLoadable],
+  );
+  return [day, setDay] as const;
 };

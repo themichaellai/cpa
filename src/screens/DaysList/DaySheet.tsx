@@ -1,17 +1,18 @@
 import { memo, useCallback, useMemo } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import BottomSheet from '@gorhom/bottom-sheet';
-import { useAtom } from 'jotai';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Either } from 'purify-ts/Either';
-import { Maybe, Just, Nothing } from 'purify-ts/Maybe';
+import { Maybe } from 'purify-ts/Maybe';
 import { LocalDate, convert } from '@js-joda/core';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PURPLE } from '../../colors';
 import { now, IsoDate, parseDateTime, IsoDateTime } from '../../time';
 import Text from '../../components/Text';
 import Button from '../../components/Button';
-import { Dinner, useDayAtom } from '../../store/days';
+import { Dinner, useDay } from '../../store/days';
 import DinnerPicker from './DinnerPicker';
+import Pooper from './Pooper';
 
 const dateToDisplay = (date: IsoDate): string => {
   const dateObj = LocalDate.parse(date);
@@ -32,26 +33,13 @@ const formatTime = (dt: IsoDateTime): Either<Error, string> => {
   });
 };
 
-const useDay = (d: IsoDate) => {
-  const dayAtom = useDayAtom(d);
-  const [dayStateLoadable, setDay] = useAtom(dayAtom);
-  const day = useMemo(
-    () =>
-      dayStateLoadable.state === 'hasData'
-        ? Just(dayStateLoadable.data)
-        : Nothing,
-    [dayStateLoadable],
-  );
-  return [day, setDay] as const;
-};
-
 const DaySheet: React.FC<{
   topY: number;
   date: IsoDate;
 }> = ({ topY, date }) => {
   const dimensions = useWindowDimensions();
   const snapPoints = useMemo(
-    () => [dimensions.height - topY],
+    () => [dimensions.height - topY - 10, '90%'],
     [topY, dimensions.height],
   );
 
@@ -126,41 +114,53 @@ const DaySheet: React.FC<{
     },
     [day, setDay],
   );
+
+  const { bottom: safeAreaBottom } = useSafeAreaInsets();
+  const scrollContentInset = useMemo(
+    () => ({ bottom: safeAreaBottom }),
+    [safeAreaBottom],
+  );
+
   return (
     <BottomSheet index={0} snapPoints={snapPoints} style={styles.container}>
-      <Text size="lg" style={styles.title}>
-        {dateToDisplay(date)}
-      </Text>
-      <View style={styles.formContainer}>
-        <View style={styles.formLabel}>
-          <Text size="sm">Wake up</Text>
+      <BottomSheetScrollView
+        contentInset={scrollContentInset}
+        contentContainerStyle={styles.containerScroll}
+      >
+        <Text size="lg" style={styles.title}>
+          {dateToDisplay(date)}
+        </Text>
+        <View style={styles.formContainer}>
+          <View style={styles.formLabel}>
+            <Text size="sm">Wake up</Text>
+          </View>
+          <View style={styles.formValue}>{wakeUpTableValueEl}</View>
         </View>
-        <View style={styles.formValue}>{wakeUpTableValueEl}</View>
-      </View>
-      <View style={styles.formContainer}>
-        <View style={styles.formLabel}>
-          <Text size="sm">Dinner</Text>
+        <View style={styles.formContainer}>
+          <View style={styles.formLabel}>
+            <Text size="sm">Dinner</Text>
+          </View>
+          <View style={styles.formValue}>
+            <DinnerPicker dinner={dinner} setSize={setDinnerSize} />
+          </View>
         </View>
-        <View style={styles.formValue}>
-          <DinnerPicker dinner={dinner} setSize={setDinnerSize} />
+        {/*<View style={styles.formContainer}>
+          <View style={styles.formLabel}>
+            <Text size="sm">Coffee</Text>
+          </View>
+          <View style={styles.formValue}>
+            <Text size="sm">World</Text>
+          </View>
+        </View>*/}
+        <View style={styles.formContainer}>
+          <View style={[styles.formLabel, styles.formLabelPoops]}>
+            <Text size="sm">Poops</Text>
+          </View>
+          <View style={[styles.formValue, styles.formValuePoops]}>
+            <Pooper date={date} />
+          </View>
         </View>
-      </View>
-      {/*<View style={styles.formContainer}>
-        <View style={styles.formLabel}>
-          <Text size="sm">Coffee</Text>
-        </View>
-        <View style={styles.formValue}>
-          <Text size="sm">World</Text>
-        </View>
-      </View>*/}
-      <View style={styles.formContainer}>
-        <View style={styles.formLabel}>
-          <Text size="sm">Poops</Text>
-        </View>
-        <View style={styles.formValue}>
-          <Text size="sm"></Text>
-        </View>
-      </View>
+      </BottomSheetScrollView>
     </BottomSheet>
   );
 };
@@ -169,11 +169,13 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
     borderRadius: 10,
-    paddingHorizontal: 26,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.5,
     shadowRadius: 5,
+  },
+  containerScroll: {
+    paddingHorizontal: 26,
   },
   formContainer: {
     backgroundColor: PURPLE.P10,
@@ -189,10 +191,18 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     width: '30%',
   },
+  formLabelPoops: {
+    justifyContent: 'flex-start',
+    marginTop: 1,
+    paddingVertical: 8,
+  },
   formValue: {
     alignItems: 'flex-start',
     flex: 1,
     justifyContent: 'center',
+  },
+  formValuePoops: {
+    alignItems: 'stretch',
   },
   title: {
     marginBottom: 20,

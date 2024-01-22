@@ -11,8 +11,6 @@ const DinnerPicker: React.FC<{
   dinner: Dinner | null;
   setSize: (size: DinnerSize | null) => void;
 }> = ({ dinner, setSize }) => {
-  //const setSelected= useCallback((s: DinnerSize) => setSelectedState(currSize => currSize === s ? null : s), []);
-
   const buttonSelectedStyle = useCallback(
     (newSize: DinnerSize) =>
       dinner?.size === newSize ? styles.buttonSelected : null,
@@ -33,13 +31,13 @@ const DinnerPicker: React.FC<{
           buttonSelectedStyle('regular'),
         ]}
       >
-        <Text size="sm">Regular</Text>
+        <Text size="sm">regular</Text>
       </Pressable>
       <Pressable
         onPress={selectBig}
         style={[styles.button, styles.buttonRight, buttonSelectedStyle('big')]}
       >
-        <Text size="sm">Big</Text>
+        <Text size="sm">big</Text>
       </Pressable>
     </View>
   );
@@ -47,7 +45,7 @@ const DinnerPicker: React.FC<{
 
 const styles = StyleSheet.create({
   button: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
     paddingVertical: 8,
   },
   buttonLeft: {

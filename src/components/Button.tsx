@@ -22,8 +22,8 @@ const styles = StyleSheet.create({
     borderColor: PURPLE.P8,
     borderRadius: 10,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
 });
 
