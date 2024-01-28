@@ -1,33 +1,18 @@
-/* eslint-env node */
 module.exports = {
+  root: true,
+  env: { browser: true, es2020: true },
   extends: [
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
-    'plugin:react-native/all',
-    'plugin:react/recommended',
     'plugin:react-hooks/recommended',
   ],
+  ignorePatterns: ['dist', '.eslintrc.cjs'],
   parser: '@typescript-eslint/parser',
-  parserOptions: {
-    ecmaFeatures: {
-      jsx: true,
-    },
-  },
-  settings: {
-    react: {
-      createClass: 'createReactClass',
-      pragma: 'React',
-      fragment: 'Fragment',
-      version: 'detect',
-    },
-  },
-  plugins: ['@typescript-eslint', 'react', 'react-native'],
-  root: true,
+  plugins: ['react-refresh'],
   rules: {
-    'react/react-in-jsx-scope': 'off',
-    'react-native/no-color-literals': 'off',
-    'react-hooks/exhaustive-deps': 'error',
-    // Seems like this rule doesn't work too well with typescript
-    'react/prop-types': 'off',
+    'react-refresh/only-export-components': [
+      'warn',
+      { allowConstantExport: true },
+    ],
   },
 };
