@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   formLabelPoops: {
     justifyContent: 'flex-start',
     marginTop: 1,
-    paddingVertical: 8,
+    paddingVertical: 15,
   },
   formValue: {
     alignItems: 'flex-start',
