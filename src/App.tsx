@@ -6,11 +6,11 @@ import BottomSheet from './BottomSheet';
 import './App.css';
 
 function App() {
-  const [selectedDate, setSelectedDate] = useState<LocalDate | null>(null);
+  const [selectedDate, setSelectedDate] = useState<LocalDate>(LocalDate.now());
 
   return (
     <>
-      <Calendar onChange={setSelectedDate} />
+      <Calendar value={selectedDate} onChange={setSelectedDate} />
       <BottomSheet selectedDate={selectedDate} />
     </>
   );
