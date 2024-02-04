@@ -1,4 +1,3 @@
-import { useMemo, useRef } from 'react';
 import {
   LocalDate,
   LocalTime,
@@ -10,9 +9,10 @@ import clsx from 'clsx';
 import { Button, Card, Flex } from '@radix-ui/themes';
 import { Maybe } from 'purify-ts/Maybe';
 
+import SegmentedButton from './components/SegmentedButton';
+import TimePicker from './components/TimePicker';
 import { useDay } from './store';
-import { IsoDateTime, now, parseDateTime } from './time';
-import { Either } from 'purify-ts/Either';
+import { IsoDateTime, now } from './time';
 
 function BottomSheet({ selectedDate }: { selectedDate: LocalDate | null }) {
   if (selectedDate == null) {
@@ -28,28 +28,6 @@ const localDateToDisplay = (date: LocalDate): string => {
     year: 'numeric',
   });
   return res;
-};
-
-const formatTime = (dt: IsoDateTime): Either<Error, string> => {
-  const parsed = parseDateTime(dt);
-  return parsed.map((dateTime) => {
-    return convert(dateTime).toDate().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  });
-};
-
-const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
-  const parsed = parseDateTime(dt);
-  // format as 24 hour time
-  return parsed.map((dateTime) => {
-    return convert(dateTime).toDate().toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-  });
 };
 
 function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
@@ -78,6 +56,18 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
     setWakeUp();
   };
 
+  const setDinner = (size: 'regular' | 'big') => {
+    day.ifJust((d) => {
+      setDay({
+        ...d,
+        dinner: {
+          size,
+          time: null,
+        },
+      });
+    });
+  };
+
   const controls: Array<{
     label: string;
     el: React.ReactNode;
@@ -92,6 +82,23 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
             Set
           </Button>,
         ),
+    },
+    {
+      label: 'Dinner',
+      el: (
+        <div className="flex justify-start">
+          <SegmentedButton
+            selected={day
+              .chain((d) => Maybe.fromNullable(d.dinner?.size))
+              .extractNullable()}
+            options={[
+              { label: 'Regular', value: 'regular' },
+              { label: 'Big', value: 'big' },
+            ]}
+            onSelect={setDinner}
+          />
+        </div>
+      ),
     },
   ];
 
@@ -109,61 +116,5 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
     </div>
   );
 }
-
-const TimePicker = ({
-  time,
-  onChange,
-}: {
-  time: IsoDateTime;
-  onChange: (timeOffsetMillis: number) => void;
-}) => {
-  const wakeUp = useMemo(() => formatTime(time).orDefault('Set'), [time]);
-  const formFormattedTime = useMemo(
-    () => formatTimeForInput(time).orDefault('00:00'),
-    [time],
-  );
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const userAgent = window.navigator.userAgent;
-  const isIos = !!userAgent.match(/iPad/i) || !!userAgent.match(/iPhone/i);
-  const isWebkit = !!userAgent.match(/WebKit/i);
-  const isIosSafari = isIos && isWebkit && !userAgent.match(/CriOS/i);
-
-  const onTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.valueAsNumber);
-  };
-
-  if (isIosSafari) {
-    return (
-      <input
-        type="time"
-        className="bg-purple10"
-        ref={inputRef}
-        value={formFormattedTime}
-        onInput={onTimeInputChange}
-      />
-    );
-  }
-
-  return (
-    <div className="relative">
-      <Button
-        variant="soft"
-        onClick={() => {
-          inputRef.current?.showPicker();
-        }}
-      >
-        {wakeUp}
-      </Button>
-      <input
-        type="time"
-        className="absolute bg-transparent"
-        ref={inputRef}
-        value={formFormattedTime}
-        onChange={onTimeInputChange}
-      />
-    </div>
-  );
-};
 
 export default BottomSheet;
