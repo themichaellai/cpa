@@ -78,7 +78,7 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
         .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
         .map((wakeUp) => <TimePicker time={wakeUp} onChange={setWakeUp} />)
         .orDefault(
-          <Button variant="classic" onClick={setWakeUpNow}>
+          <Button variant="soft" onClick={setWakeUpNow}>
             Set
           </Button>,
         ),

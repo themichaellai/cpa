@@ -57,7 +57,7 @@ const TimePicker = ({
     return (
       <input
         type="time"
-        className="bg-purple-5 border-purple-6 border"
+        className="bg-purple-3 border-purple-4 border"
         ref={inputRef}
         value={formFormattedTime}
         onInput={onTimeInputChange}

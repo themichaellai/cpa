@@ -11,7 +11,7 @@ function App() {
   const [selectedDate, setSelectedDate] = useState<LocalDate>(LocalDate.now());
 
   return (
-    <Theme>
+    <Theme accentColor="purple">
       <Calendar value={selectedDate} onChange={setSelectedDate} />
       <BottomSheet selectedDate={selectedDate} />
     </Theme>
