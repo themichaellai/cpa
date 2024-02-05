@@ -1,9 +1,16 @@
 import { useCallback, useMemo } from 'react';
-import { LocalDate } from '@js-joda/core';
+import { LocalDate, LocalTime, ZoneId, ZonedDateTime } from '@js-joda/core';
 import { Button, Card, Flex, Switch } from '@radix-ui/themes';
 
 import { useDay, Day, Poop } from './store';
-import { formatTimeForDisplay, now } from './time';
+import { IsoDateTime, now } from './time';
+import TimePicker from './components/TimePicker';
+
+const setPoopAtIdx = (poops: Poop[], idx: number, newPoop: Poop): Poop[] => [
+  ...poops.slice(0, idx),
+  newPoop,
+  ...poops.slice(idx + 1),
+];
 
 const Pooper: React.FC<{
   date: LocalDate;
@@ -46,11 +53,28 @@ const Pooper: React.FC<{
               };
               return {
                 ...d,
-                poops: [
-                  ...d.poops.slice(0, idx),
-                  newPoop,
-                  ...d.poops.slice(idx + 1),
-                ],
+                poops: setPoopAtIdx(d.poops, idx, newPoop),
+              };
+            })
+            .ifJust((d) => {
+              setDay(d);
+            });
+        };
+
+        const changeTime = (timeOffsetMillis: number) => {
+          day
+            .map((d) => {
+              const newTime: IsoDateTime = ZonedDateTime.of(
+                date,
+                LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
+                ZoneId.systemDefault(),
+              ).toString() as IsoDateTime;
+              return {
+                ...d,
+                poops: setPoopAtIdx(d.poops, idx, {
+                  ...poop,
+                  time: newTime,
+                }),
               };
             })
             .ifJust((d) => {
@@ -63,10 +87,10 @@ const Pooper: React.FC<{
             key={`${day}-${idx}`}
             className={poops.length === idx + 1 ? '' : 'mb-2'}
           >
-            <Flex align="center" gap="1" className="mb-2">
+            <Flex align="center" gap="1" className="mb-4">
               <div className="w-1/4">Time</div>
               <div className="flex-1 text-right">
-                {formatTimeForDisplay(poop.time).orDefault('error')}
+                <TimePicker time={poop.time} onChange={changeTime} />
               </div>
             </Flex>
             <Flex align="center" gap="1">
@@ -83,7 +107,7 @@ const Pooper: React.FC<{
           </Card>
         );
       }),
-    [poops, setDay, day],
+    [poops, setDay, day, date],
   );
 
   return (
