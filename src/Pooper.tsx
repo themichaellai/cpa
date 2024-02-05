@@ -59,7 +59,10 @@ const Pooper: React.FC<{
         };
 
         return (
-          <Card key={`${day}-${idx}`}>
+          <Card
+            key={`${day}-${idx}`}
+            className={poops.length === idx + 1 ? '' : 'mb-2'}
+          >
             <Flex align="center" gap="1" className="mb-2">
               <div className="w-1/4">Time</div>
               <div className="flex-1 text-right">
