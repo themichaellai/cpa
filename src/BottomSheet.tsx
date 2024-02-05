@@ -12,7 +12,7 @@ import { Maybe } from 'purify-ts/Maybe';
 import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
 import { useDay } from './store';
-import { IsoDateTime, now } from './time';
+import { IsoDateTime } from './time';
 import Pooper from './Pooper';
 
 function BottomSheet({ selectedDate }: { selectedDate: LocalDate | null }) {
@@ -37,9 +37,13 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
   const setWakeUp = (timeOffsetMillis?: number) => {
     const time: IsoDateTime =
       timeOffsetMillis == null
-        ? now()
+        ? (ZonedDateTime.of(
+            selectedDate,
+            LocalTime.now(),
+            ZoneId.systemDefault(),
+          ).toString() as IsoDateTime)
         : (ZonedDateTime.of(
-            LocalDate.now(),
+            selectedDate,
             LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
             ZoneId.systemDefault(),
           ).toString() as IsoDateTime);
