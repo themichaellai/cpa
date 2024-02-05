@@ -3,7 +3,7 @@ import { Button } from '@radix-ui/themes';
 import { Either } from 'purify-ts/Either';
 import { convert } from '@js-joda/core';
 
-import { IsoDateTime, parseDateTime } from '../time';
+import { formatTimeForDisplay, IsoDateTime, parseDateTime } from '../time';
 
 const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
   const parsed = parseDateTime(dt);
@@ -17,16 +17,6 @@ const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
   });
 };
 
-const formatTime = (dt: IsoDateTime): Either<Error, string> => {
-  const parsed = parseDateTime(dt);
-  return parsed.map((dateTime) => {
-    return convert(dateTime).toDate().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  });
-};
-
 const TimePicker = ({
   time,
   onChange,
@@ -35,7 +25,7 @@ const TimePicker = ({
   onChange: (timeOffsetMillis: number) => void;
 }) => {
   const formattedTime = useMemo(
-    () => formatTime(time).orDefault('Set'),
+    () => formatTimeForDisplay(time).orDefault('Set'),
     [time],
   );
   const formFormattedTime = useMemo(
@@ -57,7 +47,7 @@ const TimePicker = ({
     return (
       <input
         type="time"
-        className="bg-purple-3 border-purple-4 border"
+        className="bg-purple-3 text-purple-10 rounded"
         ref={inputRef}
         value={formFormattedTime}
         onInput={onTimeInputChange}

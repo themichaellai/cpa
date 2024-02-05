@@ -1,5 +1,5 @@
 import '@js-joda/timezone';
-import { ZonedDateTime } from '@js-joda/core';
+import { ZonedDateTime, convert } from '@js-joda/core';
 import { Either } from 'purify-ts/Either';
 
 export type IsoDateTime = string & { __type: 'isoDateTime' };
@@ -13,4 +13,16 @@ export const parseDateTime = (
   isoDateTime: IsoDateTime,
 ): Either<Error, ZonedDateTime> => {
   return Either.encase(() => ZonedDateTime.parse(isoDateTime));
+};
+
+export const formatTimeForDisplay = (
+  dt: IsoDateTime,
+): Either<Error, string> => {
+  const parsed = parseDateTime(dt);
+  return parsed.map((dateTime) => {
+    return convert(dateTime).toDate().toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  });
 };

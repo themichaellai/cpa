@@ -13,6 +13,7 @@ import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
 import { useDay } from './store';
 import { IsoDateTime, now } from './time';
+import Pooper from './Pooper';
 
 function BottomSheet({ selectedDate }: { selectedDate: LocalDate | null }) {
   if (selectedDate == null) {
@@ -71,6 +72,7 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
   const controls: Array<{
     label: string;
     el: React.ReactNode;
+    labelAlignStart?: boolean;
   }> = [
     {
       label: 'Wake up',
@@ -100,15 +102,22 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
         </div>
       ),
     },
+    {
+      label: 'Poops',
+      labelAlignStart: true,
+      el: <Pooper date={selectedDate} />,
+    },
   ];
 
   return (
     <div className={clsx('mt-5', 'mx-5')}>
       <h1 className={clsx('text-xl')}>{localDateToDisplay(selectedDate)}</h1>
-      {controls.map(({ label, el }) => (
+      {controls.map(({ label, labelAlignStart, el }) => (
         <Card key={label} className={clsx('mt-5')}>
-          <Flex align="center">
-            <div className="w-1/4">{label}</div>
+          <Flex align={labelAlignStart ? 'start' : 'center'}>
+            <div className={clsx(['w-1/4', labelAlignStart ? 'my-3' : null])}>
+              {label}
+            </div>
             <div className="flex-1">{el}</div>
           </Flex>
         </Card>
