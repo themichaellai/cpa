@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { LocalDate, LocalTime, ZoneId, ZonedDateTime } from '@js-joda/core';
-import { Button, Card, Flex, Switch } from '@radix-ui/themes';
+import { Button, Card, ContextMenu, Flex, Switch } from '@radix-ui/themes';
+import clsx from 'clsx';
 
 import { useDay, Day, Poop } from './store';
 import { IsoDateTime, now } from './time';
@@ -82,29 +83,51 @@ const Pooper: React.FC<{
             });
         };
 
+        const deleteSelf = () => {
+          day
+            .map((d) => {
+              return {
+                ...d,
+                poops: [...d.poops.slice(0, idx), ...d.poops.slice(idx + 1)],
+              };
+            })
+            .ifJust((d) => {
+              setDay(d);
+            });
+        };
+
         return (
-          <Card
-            key={`${day}-${idx}`}
-            className={poops.length === idx + 1 ? '' : 'mb-2'}
-          >
-            <Flex align="center" gap="1" className="mb-4">
-              <div className="w-1/4">Time</div>
-              <div className="flex-1 text-right">
-                <TimePicker time={poop.time} onChange={changeTime} />
-              </div>
-            </Flex>
-            <Flex align="center" gap="1">
-              <div className="w-1/4">On run</div>
-              <div className="flex-1 text-right">
-                <Switch
-                  checked={poop.run != null}
-                  onCheckedChange={toggleRun}
-                  variant="soft"
-                  size="3"
-                />
-              </div>
-            </Flex>
-          </Card>
+          <ContextMenu.Root key={`${day}-${idx}`}>
+            <ContextMenu.Trigger>
+              <Card
+                className={clsx(
+                  poops.length === idx + 1 ? '' : 'mb-2',
+                  'select-none',
+                )}
+              >
+                <Flex align="center" gap="1" className="mb-4 select-none">
+                  <div className="w-1/4">Time</div>
+                  <div className="flex-1 text-right">
+                    <TimePicker time={poop.time} onChange={changeTime} />
+                  </div>
+                </Flex>
+                <Flex align="center" className="select-none" gap="1">
+                  <div className="w-1/4 select-none">On run</div>
+                  <div className="flex-1 text-right">
+                    <Switch
+                      checked={poop.run != null}
+                      onCheckedChange={toggleRun}
+                      variant="soft"
+                      size="3"
+                    />
+                  </div>
+                </Flex>
+              </Card>
+            </ContextMenu.Trigger>
+            <ContextMenu.Content size="1">
+              <ContextMenu.Item onClick={deleteSelf}>Delete</ContextMenu.Item>
+            </ContextMenu.Content>
+          </ContextMenu.Root>
         );
       }),
     [poops, setDay, day, date],
