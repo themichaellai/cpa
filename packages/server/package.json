@@ -1,0 +1,11 @@
+{
+  "name": "cpa-server",
+  "version": "1.0.0",
+  "dependencies": {
+    "convex": "^1.9.0",
+    "replicache": "^14.2.2"
+  },
+  "scripts": {
+    "dev": "convex dev"
+  }
+}
