@@ -25,10 +25,11 @@ export default defineSchema({
     ),
     wakeUp: v.union(v.null(), v.object({ time: v.string() })),
 
+    id: v.string(),
     lastModifiedVersion: v.number(),
     deleted: v.boolean(),
-    // TODO: fix this to be v.id('users')
-    userId: v.union(v.id('users'), v.string()),
+    // TODO: fix this to be v.id('space')
+    spaceId: v.union(v.id('space'), v.string()),
   }),
   users: defineTable({
     passwordHash: v.string(),

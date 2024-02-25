@@ -1,7 +1,12 @@
 import { query, mutation, MutationCtx, QueryCtx } from './_generated/server';
 import { Id, DataModel } from './_generated/dataModel';
 import { v } from 'convex/values';
-import { MutationV1, PushRequestV1 } from 'replicache';
+import {
+  MutationV1,
+  PushRequestV1,
+  PullResponseV1,
+  PatchOperation,
+} from 'replicache';
 
 const mutationCommon = {
   id: v.number(),
@@ -242,7 +247,7 @@ export const push = mutation({
             dinner: null,
             wakeUp: null,
             poops: [],
-            userId: user?._id,
+            spaceId: space._id,
 
             lastModifiedVersion: newSpaceVersion,
             deleted: false,
@@ -266,5 +271,103 @@ export const push = mutation({
         lastMutationId: nextMutationId,
       });
     }
+  },
+});
+
+const parseCookie = (cookie: string | null): number => {
+  if (cookie == null) {
+    return 0;
+  }
+  const parsed = parseInt(cookie, 10);
+  if (isNaN(parsed)) {
+    return 0;
+  }
+  return parsed;
+};
+
+export const pull = query({
+  args: {
+    profileId: v.string(),
+    clientGroupId: v.string(),
+    cookie: v.union(v.null(), v.string()),
+    schemaVersion: v.string(),
+    // user ID is not part of the replicache schema, figure this out
+    userId: v.id('users'),
+  },
+  handler: async (ctx, args): Promise<PullResponseV1> => {
+    const space = await ctx.db
+      .query('space')
+      .filter((q) => q.eq(q.field('userId'), args.userId))
+      .first();
+    if (space == null) {
+      throw new Error('space not found');
+    }
+
+    const cookieVersion = parseCookie(args.cookie);
+    if (cookieVersion > space.version) {
+      throw new Error('cookie version is ahead of space version');
+    }
+
+    const clientGroup = await ctx.db
+      .query('replicacheClientGroup')
+      .filter((q) =>
+        q.and(
+          // 1. Verify that requesting user owns the requested
+          //    ReplicacheClientGroup.
+          q.eq(q.field('userId'), args.userId),
+          // 2. Verify that the requested ReplicacheClientGroup is within the
+          //    requested space.
+          q.eq(q.field('spaceId'), space._id),
+          q.eq(q.field('id'), args.clientGroupId),
+        ),
+      )
+      .first();
+    if (clientGroup == null) {
+      throw new Error('client group not found');
+    }
+
+    // Get "the lastMutatationID for each client that has changed since the
+    // requesting cookie."
+    const updatedClients = await ctx.db
+      .query('replicacheClient')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('replicacheClientGroupId'), clientGroup._id),
+          q.gt(q.field('lastModifiedVersion'), cookieVersion),
+        ),
+      )
+      .collect();
+    const lastMutationIdChanges = Object.fromEntries(
+      updatedClients.map((c) => [c.id, c.lastMutationId]),
+    );
+
+    const changedDocs = await ctx.db
+      .query('days')
+      .filter((q) =>
+        q.and(
+          q.eq(q.field('spaceId'), space._id),
+          q.gt(q.field('lastModifiedVersion'), cookieVersion),
+        ),
+      )
+      .collect();
+    const patches = changedDocs.map((d): PatchOperation => {
+      if (d.deleted) {
+        return {
+          key: `day/${d.id}`,
+          op: 'del',
+        };
+      }
+      return {
+        key: `day/${d.id}`,
+        op: 'put',
+        value: d,
+      };
+    });
+
+    return {
+      cookie: space.version,
+      lastMutationIDChanges: lastMutationIdChanges,
+      patch: patches,
+    };
   },
 });
