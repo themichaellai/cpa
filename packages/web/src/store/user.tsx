@@ -1,6 +1,6 @@
-import { createContext, PropsWithChildren, useContext, useState } from 'react';
 import * as bip39 from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
+import { PropsWithChildren, createContext, useContext, useState } from 'react';
 
 interface User {
   passphrase: string;
@@ -18,12 +18,13 @@ const getOrCreatePassphrase = (): string => {
   return newPassphrase;
 };
 
-const UserContext = createContext<User>({
-  passphrase: getOrCreatePassphrase(),
-});
+const UserContext = createContext<User | null>(null);
 
 export const useUserToken = (): string => {
   const user = useContext(UserContext);
+  if (user == null) {
+    throw new Error('useUserToken must be used within a UserWrapper');
+  }
   return user.passphrase;
 };
 

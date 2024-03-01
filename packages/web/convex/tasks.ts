@@ -21,6 +21,7 @@ const mutations = v.array(
       name: v.literal('addDay'),
       args: v.object({
         date: v.string(),
+        id: v.string(),
       }),
     }),
     v.object({
@@ -187,18 +188,21 @@ export const push = mutation({
     clientGroupId: v.string(),
     mutations,
     // user ID is not part of the replicache schema, figure this out
-    userId: v.id('users'),
+    userKey: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
+    const user = await ctx.db
+      .query('users')
+      .filter((q) => q.eq(q.field('passwordHash'), args.userKey))
+      .first();
     if (user == null) {
-      return { error: 'user not found' };
+      throw new Error('user not found');
     }
-    const space = await getOrCreateUserSpace(ctx, args.userId);
+    const space = await getOrCreateUserSpace(ctx, user._id);
     // 1. Create a new ReplicacheClientGroup if necessary.
     const clientGroupId = await getOrInitializeClientGroupId(
       ctx,
-      args.userId,
+      user._id,
       space._id,
       args.clientGroupId,
     );
@@ -230,7 +234,7 @@ export const push = mutation({
         throw new Error(`mutation "${mutation.id}" is from the future`);
       }
       // 6. Increment the per-space version.
-      const newSpaceVersion = await incrementUserSpaceVersion(ctx, args.userId);
+      const newSpaceVersion = await incrementUserSpaceVersion(ctx, user._id);
       // 7. Run the applicable business logic to apply the mutation.
       // - For each domain entity that is changed or deleted, update its
       //   lastModifiedVersion to the current per-space version.
@@ -248,6 +252,7 @@ export const push = mutation({
             wakeUp: null,
             poops: [],
             spaceId: space._id,
+            id: mutation.args.id,
 
             lastModifiedVersion: newSpaceVersion,
             deleted: false,
@@ -289,18 +294,32 @@ export const pull = query({
   args: {
     profileId: v.string(),
     clientGroupId: v.string(),
-    cookie: v.union(v.null(), v.string()),
+    cookie: v.union(v.null(), v.number()),
     schemaVersion: v.string(),
-    // user ID is not part of the replicache schema, figure this out
-    userId: v.id('users'),
+    userKey: v.string(),
   },
   handler: async (ctx, args): Promise<PullResponseV1> => {
+    const user = await ctx.db
+      .query('users')
+      .filter((q) => q.eq(q.field('passwordHash'), args.userKey))
+      .first();
+    if (user == null) {
+      return {
+        cookie: 0,
+        lastMutationIDChanges: {},
+        patch: [],
+      };
+    }
     const space = await ctx.db
       .query('space')
-      .filter((q) => q.eq(q.field('userId'), args.userId))
+      .filter((q) => q.eq(q.field('userId'), user._id))
       .first();
     if (space == null) {
-      throw new Error('space not found');
+      return {
+        cookie: 0,
+        lastMutationIDChanges: {},
+        patch: [],
+      };
     }
 
     const cookieVersion = parseCookie(args.cookie);
@@ -314,7 +333,7 @@ export const pull = query({
         q.and(
           // 1. Verify that requesting user owns the requested
           //    ReplicacheClientGroup.
-          q.eq(q.field('userId'), args.userId),
+          q.eq(q.field('userId'), user._id),
           // 2. Verify that the requested ReplicacheClientGroup is within the
           //    requested space.
           q.eq(q.field('spaceId'), space._id),
@@ -323,7 +342,11 @@ export const pull = query({
       )
       .first();
     if (clientGroup == null) {
-      throw new Error('client group not found');
+      return {
+        cookie: 0,
+        lastMutationIDChanges: {},
+        patch: [],
+      };
     }
 
     // Get "the lastMutatationID for each client that has changed since the
