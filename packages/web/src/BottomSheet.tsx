@@ -8,12 +8,16 @@ import {
 import clsx from 'clsx';
 import { Button, Card, Flex } from '@radix-ui/themes';
 import { Maybe } from 'purify-ts/Maybe';
+import { useSubscribe } from 'replicache-react';
 
+import { FrontendDay } from '../convex/days';
 import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
 import { useDay } from './store';
 import { IsoDateTime } from './time';
 import Pooper from './Pooper';
+import { useReplicache } from './replicache';
+import { useEffect, useMemo } from 'react';
 
 function BottomSheet({ selectedDate }: { selectedDate: LocalDate | null }) {
   if (selectedDate == null) {
@@ -33,7 +37,53 @@ const localDateToDisplay = (date: LocalDate): string => {
 
 function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
   const [day, setDay] = useDay(selectedDate);
+  const rep = useReplicache();
+  const repIdWithDay = useSubscribe(
+    rep,
+    async (tx) => {
+      const res = tx.scan({
+        prefix: `day/`,
+      });
+      return (await res.toArray()) as Array<FrontendDay>;
+    },
+    {
+      default: null,
+    },
+  );
+  const dateToId = useMemo(() => {
+    if (repIdWithDay == null) {
+      return null;
+    }
+    return Object.fromEntries(
+      repIdWithDay.map((day) => [day.date, day.id] as const),
+    );
+  }, [repIdWithDay]);
+  useEffect(() => {
+    console.log({
+      repIdWithDay: repIdWithDay ?? null,
+      dateToId: dateToId ?? null,
+    });
+  }, [repIdWithDay, dateToId]);
 
+  const repDay = useSubscribe(
+    rep,
+    async (tx) => {
+      const res = await tx.get(`day/${dateToId?.[selectedDate.toString()]}`);
+      return res as FrontendDay;
+    },
+    {
+      default: null,
+      dependencies: [dateToId, selectedDate],
+    },
+  );
+
+  useEffect(() => {
+    console.log(
+      JSON.stringify({
+        repDay: repDay ?? null,
+      }),
+    );
+  }, [repDay]);
   const setWakeUp = (timeOffsetMillis?: number) => {
     const time: IsoDateTime =
       timeOffsetMillis == null
@@ -50,6 +100,14 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
     day.ifJust((d) => {
       setDay({
         ...d,
+        wakeUp: {
+          time,
+        },
+      });
+      const repId = dateToId?.[d.date] ?? crypto.randomUUID();
+      rep?.mutate.setWakeUp({
+        date: selectedDate.toString(),
+        id: repId,
         wakeUp: {
           time,
         },

@@ -8,10 +8,12 @@ import {
   PatchOperation,
 } from 'replicache';
 
+import { FrontendDay } from './days.js';
+
 const mutationCommon = {
   id: v.number(),
   timestamp: v.number(),
-  clientId: v.string(),
+  clientID: v.string(),
 };
 
 const mutations = v.array(
@@ -29,8 +31,14 @@ const mutations = v.array(
       name: v.literal('setWakeUp'),
       args: v.object({
         date: v.string(),
+        id: v.string(),
         wakeUp: v.union(v.null(), v.object({ time: v.string() })),
       }),
+    }),
+    v.object({
+      ...mutationCommon,
+      name: v.literal('clearAll'),
+      args: v.object({}),
     }),
   ),
 );
@@ -187,7 +195,6 @@ export const push = mutation({
     profileId: v.string(),
     clientGroupId: v.string(),
     mutations,
-    // user ID is not part of the replicache schema, figure this out
     userKey: v.string(),
   },
   handler: async (ctx, args) => {
@@ -213,12 +220,28 @@ export const push = mutation({
     const mutationIdsByClientId = await getMutationIdsByClientId(
       ctx,
       clientGroupId,
-      args.mutations.map((m) => m.clientId),
+      args.mutations.map((m) => m.clientID),
     );
 
+    // Check for mutations from the future ahead of time because can't roll
+    // back transaction
     for (const mutation of args.mutations) {
-      // Create the ReplicacheClient if necessary.
-      const lastClientMutation = mutationIdsByClientId.get(mutation.clientId);
+      const lastClientMutation = mutationIdsByClientId.get(mutation.clientID);
+      if (lastClientMutation == null) {
+        continue;
+      }
+      const { mutationId: lastMutationId } = lastClientMutation;
+      const nextMutationId = lastMutationId + 1;
+      // 5. Validate that the received mutation ID is the next expected
+      // mutation ID from this client.
+      if (mutation.id > nextMutationId) {
+        console.warn(`mutation "${mutation.id}" is from the future`);
+        return;
+      }
+    }
+
+    for (const mutation of args.mutations) {
+      const lastClientMutation = mutationIdsByClientId.get(mutation.clientID);
       if (lastClientMutation == null) {
         continue;
       }
@@ -226,12 +249,13 @@ export const push = mutation({
       const nextMutationId = lastMutationId + 1;
       if (mutation.id < lastMutationId) {
         // Mutation has already been processed
-        return;
+        continue;
       }
       // 5. Validate that the received mutation ID is the next expected
       // mutation ID from this client.
       if (mutation.id > nextMutationId) {
-        throw new Error(`mutation "${mutation.id}" is from the future`);
+        console.warn(`mutation "${mutation.id}" is from the future`);
+        break;
       }
       // 6. Increment the per-space version.
       const newSpaceVersion = await incrementUserSpaceVersion(ctx, user._id);
@@ -260,6 +284,43 @@ export const push = mutation({
           break;
         }
         case 'setWakeUp': {
+          const dayDb = await ctx.db
+            .query('days')
+            .filter((q) => q.eq(q.field('id'), mutation.args.id))
+            .first();
+          if (dayDb == null) {
+            await ctx.db.insert('days', {
+              coffee: null,
+              date: mutation.args.date,
+              dinner: null,
+              wakeUp: mutation.args.wakeUp,
+              poops: [],
+              spaceId: space._id,
+              id: mutation.args.id,
+
+              lastModifiedVersion: newSpaceVersion,
+              deleted: false,
+            });
+          } else {
+            ctx.db.patch(dayDb._id, {
+              wakeUp: mutation.args.wakeUp,
+              lastModifiedVersion: newSpaceVersion,
+              deleted: false,
+            });
+          }
+          break;
+        }
+        case 'clearAll': {
+          const days = await ctx.db
+            .query('days')
+            .filter((q) => q.eq(q.field('spaceId'), space._id))
+            .collect();
+          for (const day of days) {
+            ctx.db.patch(day._id, {
+              deleted: true,
+              lastModifiedVersion: newSpaceVersion,
+            });
+          }
           break;
         }
         default: {
@@ -279,9 +340,12 @@ export const push = mutation({
   },
 });
 
-const parseCookie = (cookie: string | null): number => {
+const parseCookie = (cookie: number | string | null): number => {
   if (cookie == null) {
     return 0;
+  }
+  if (typeof cookie === 'number') {
+    return cookie;
   }
   const parsed = parseInt(cookie, 10);
   if (isNaN(parsed)) {
@@ -290,7 +354,7 @@ const parseCookie = (cookie: string | null): number => {
   return parsed;
 };
 
-export const pull = query({
+export const pull = mutation({
   args: {
     profileId: v.string(),
     clientGroupId: v.string(),
@@ -327,21 +391,15 @@ export const pull = query({
       throw new Error('cookie version is ahead of space version');
     }
 
-    const clientGroup = await ctx.db
-      .query('replicacheClientGroup')
-      .filter((q) =>
-        q.and(
-          // 1. Verify that requesting user owns the requested
-          //    ReplicacheClientGroup.
-          q.eq(q.field('userId'), user._id),
-          // 2. Verify that the requested ReplicacheClientGroup is within the
-          //    requested space.
-          q.eq(q.field('spaceId'), space._id),
-          q.eq(q.field('id'), args.clientGroupId),
-        ),
-      )
-      .first();
-    if (clientGroup == null) {
+    const clientGroupId = await getOrInitializeClientGroupId(
+      ctx,
+      user._id,
+      space._id,
+      args.clientGroupId,
+    );
+    if (clientGroupId == null) {
+      // Should not happen normally
+      // TODO: figure out what to do here
       return {
         cookie: 0,
         lastMutationIDChanges: {},
@@ -355,7 +413,7 @@ export const pull = query({
       .query('replicacheClient')
       .filter((q) =>
         q.and(
-          q.eq(q.field('replicacheClientGroupId'), clientGroup._id),
+          q.eq(q.field('replicacheClientGroupId'), clientGroupId),
           q.gt(q.field('lastModifiedVersion'), cookieVersion),
         ),
       )
@@ -383,7 +441,14 @@ export const pull = query({
       return {
         key: `day/${d.id}`,
         op: 'put',
-        value: d,
+        value: {
+          coffee: d.coffee,
+          date: d.date,
+          dinner: d.dinner,
+          wakeUp: d.wakeUp,
+          poops: d.poops,
+          id: d.id,
+        } satisfies FrontendDay,
       };
     });
 

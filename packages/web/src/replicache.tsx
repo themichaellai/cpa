@@ -1,27 +1,114 @@
-import { createContext, PropsWithChildren, useEffect, useState } from 'react';
+import {
+  createContext,
+  PropsWithChildren,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { Replicache, WriteTransaction } from 'replicache';
 
 import { useUserToken } from './store/user';
 
 const REPLICACHE_LICENSE = 'lbf96f9411a604ca4814d875587aa4826';
 
-const newRep = (userKey: string) =>
-  new Replicache({
-    name: 'cpa',
+interface AddDayMutation {
+  date: string;
+  id: string;
+}
+
+const mutators = {
+  async addDay(tx: WriteTransaction, { date, id }: AddDayMutation) {
+    await tx.set(`day/${id}`, {
+      coffee: null,
+      dinner: null,
+      wakeUp: null,
+      poops: [],
+      date,
+    });
+  },
+  async setWakeUp(
+    tx: WriteTransaction,
+    {
+      id,
+      wakeUp,
+      date,
+    }: {
+      id: string;
+      date: string;
+      wakeUp: {
+        time: string;
+      } | null;
+    },
+  ) {
+    const day = await tx.get(`day/${id}`);
+    if (day == null || typeof day !== 'object') {
+      await tx.set(`day/${id}`, {
+        coffee: null,
+        dinner: null,
+        wakeUp,
+        poops: [],
+        date,
+      });
+    } else {
+      await tx.set(`day/${id}`, {
+        ...day,
+        wakeUp,
+      });
+    }
+  },
+};
+
+const hashText = async (text: string): Promise<string> => {
+  const msgUint8 = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return hashHex;
+};
+
+const newRep = async (userKey: string) => {
+  const hashedKey = await hashText(userKey);
+  return new Replicache({
+    name: `cpa-${hashedKey}`,
     licenseKey: REPLICACHE_LICENSE,
     pushURL: 'https://glorious-mallard-686.convex.site/push',
     pullURL: 'https://glorious-mallard-686.convex.site/pull',
     auth: `Bearer ${userKey}`,
+    mutators,
   });
+};
 
-const ReplicacheContext = createContext<Replicache | null>(null);
+const ReplicacheContext = createContext<
+  Replicache<typeof mutators> | 'initializing' | null
+>(null);
+
+export const useReplicache = (): Replicache<typeof mutators> | null => {
+  const rep = useContext(ReplicacheContext);
+  if (rep == null) {
+    throw new Error('useReplicache must be used within a ReplicacheWrapper');
+  }
+  return rep === 'initializing' ? null : rep;
+};
 
 export const ReplicacheWrapper: React.FC<PropsWithChildren> = (props) => {
   const userToken = useUserToken();
-  const [rep, setRep] = useState<Replicache | null>(() => newRep(userToken));
+  const [rep, setRep] = useState<Replicache<typeof mutators> | 'initializing'>(
+    'initializing',
+  );
   useEffect(() => {
-    console.log('got rep', rep);
+    newRep(userToken).then((r) => setRep(r));
+  }, [userToken]);
+  useEffect(() => {
+    if (rep != null) {
+      console.log('got rep', rep);
+    }
   }, [rep]);
 
-  return <>{props.children}</>;
+  return (
+    <ReplicacheContext.Provider value={rep}>
+      {props.children}
+    </ReplicacheContext.Provider>
+  );
 };
