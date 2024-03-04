@@ -8,6 +8,7 @@ import {
 import { Replicache, WriteTransaction } from 'replicache';
 
 import { useUserToken } from './store/user';
+import { FrontendDay } from '../convex/days';
 
 const REPLICACHE_LICENSE = 'lbf96f9411a604ca4814d875587aa4826';
 
@@ -48,11 +49,51 @@ const mutators = {
         wakeUp,
         poops: [],
         date,
-      });
+        id,
+      } satisfies FrontendDay);
     } else {
       await tx.set(`day/${id}`, {
         ...day,
         wakeUp,
+      });
+    }
+  },
+  async setDinner(
+    tx: WriteTransaction,
+    {
+      id,
+      date,
+      size,
+    }: {
+      id: string;
+      date: string;
+      size: null | 'regular' | 'big';
+    },
+  ) {
+    const day = await tx.get(`day/${id}`);
+    if (day == null || typeof day !== 'object' || 'length' in day) {
+      await tx.set(`day/${id}`, {
+        coffee: null,
+        dinner: {
+          size,
+          time: null,
+        },
+        wakeUp: null,
+        poops: [],
+        date,
+        id,
+      } satisfies FrontendDay);
+    } else {
+      await tx.set(`day/${id}`, {
+        ...day,
+        dinner: {
+          ...(typeof day.dinner === 'object' && !('length' in day)
+            ? day.dinner
+            : {
+                time: null,
+              }),
+          size,
+        },
       });
     }
   },
@@ -77,6 +118,7 @@ const newRep = async (userKey: string) => {
     pullURL: 'https://glorious-mallard-686.convex.site/pull',
     auth: `Bearer ${userKey}`,
     mutators,
+    //pullInterval: 5000,
   });
 };
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { httpRouter } from 'convex/server';
-import { httpAction, query } from './_generated/server';
-import { internal, api } from './_generated/api';
+import { httpAction } from './_generated/server';
+import { api } from './_generated/api';
 
 const http = httpRouter();
 
@@ -35,14 +35,26 @@ const invalidRequestResponse = (errorMessage: string | null) =>
 http.route({
   path: '/pull',
   method: 'OPTIONS',
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, _req) => {
     return new Response(null, {
       headers: CORS_HEADERS,
     });
   }),
 });
 
-const parseUserKeyFromHeader = (authHeader: string | null): string | null => {
+const sha256 = async (text: string): Promise<string> => {
+  const msgUint8 = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return hashHex;
+};
+
+const parseUserKeyFromHeader = async (
+  authHeader: string | null,
+): Promise<string | null> => {
   if (authHeader == null) {
     return null;
   }
@@ -50,7 +62,7 @@ const parseUserKeyFromHeader = (authHeader: string | null): string | null => {
   if (match == null) {
     return null;
   }
-  return match[1];
+  return sha256(match[1]);
 };
 
 http.route({
@@ -65,7 +77,7 @@ http.route({
     if (authHeader == null) {
       return invalidRequestResponse('missing user key');
     }
-    const userKey = parseUserKeyFromHeader(authHeader);
+    const userKey = await parseUserKeyFromHeader(authHeader);
     if (userKey == null) {
       return invalidRequestResponse('invalid user key');
     }
@@ -90,7 +102,7 @@ http.route({
 http.route({
   path: '/push',
   method: 'OPTIONS',
-  handler: httpAction(async (ctx, req) => {
+  handler: httpAction(async (_ctx, _req) => {
     return new Response(null, {
       headers: CORS_HEADERS,
     });
@@ -106,7 +118,7 @@ http.route({
     if (authHeader == null) {
       return invalidRequestResponse('missing user key');
     }
-    const userKey = parseUserKeyFromHeader(authHeader);
+    const userKey = await parseUserKeyFromHeader(authHeader);
     if (userKey == null) {
       return invalidRequestResponse('invalid user key');
     }

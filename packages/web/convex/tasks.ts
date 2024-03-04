@@ -1,12 +1,7 @@
-import { query, mutation, MutationCtx, QueryCtx } from './_generated/server';
+import { mutation, MutationCtx } from './_generated/server';
 import { Id, DataModel } from './_generated/dataModel';
 import { v } from 'convex/values';
-import {
-  MutationV1,
-  PushRequestV1,
-  PullResponseV1,
-  PatchOperation,
-} from 'replicache';
+import { PullResponseV1, PatchOperation } from 'replicache';
 
 import { FrontendDay } from './days.js';
 
@@ -33,6 +28,15 @@ const mutations = v.array(
         date: v.string(),
         id: v.string(),
         wakeUp: v.union(v.null(), v.object({ time: v.string() })),
+      }),
+    }),
+    v.object({
+      ...mutationCommon,
+      name: v.literal('setDinner'),
+      args: v.object({
+        date: v.string(),
+        id: v.string(),
+        size: v.union(v.null(), v.literal('regular'), v.literal('big')),
       }),
     }),
     v.object({
@@ -73,31 +77,6 @@ const getOrInitializeClientGroupId = async (
     userId: userId,
     spaceId: spaceId,
     id: clientGroupId,
-  });
-};
-
-const getOrInitializeClient = async (
-  ctx: MutationCtx,
-  clientGroupId: Id<'replicacheClientGroup'>,
-  clientId: string,
-): Promise<Id<'replicacheClient'> | null> => {
-  const client = await ctx.db
-    .query('replicacheClient')
-    .filter((q) =>
-      q.and(
-        q.eq(q.field('replicacheClientGroupId'), clientGroupId),
-        q.eq(q.field('id'), clientId),
-      ),
-    )
-    .first();
-  if (client != null) {
-    return client._id;
-  }
-  return await ctx.db.insert('replicacheClient', {
-    lastModifiedVersion: 0,
-    lastMutationId: 0,
-    replicacheClientGroupId: clientGroupId,
-    id: clientId,
   });
 };
 
@@ -189,6 +168,27 @@ const incrementUserSpaceVersion = async (
   return newVersion;
 };
 
+const getOrCreateUser = async (
+  ctx: MutationCtx,
+  userKey: string,
+): Promise<DataModel['users']['document']> => {
+  const user = await ctx.db
+    .query('users')
+    .filter((q) => q.eq(q.field('passwordHash'), userKey))
+    .first();
+  if (user != null) {
+    return user;
+  }
+  const newUserId = await ctx.db.insert('users', {
+    passwordHash: userKey,
+  });
+  const newUser = await ctx.db.get(newUserId);
+  if (newUser == null) {
+    throw new Error('failed to create new user');
+  }
+  return newUser;
+};
+
 export const push = mutation({
   args: {
     pushVersion: v.literal(1),
@@ -198,13 +198,7 @@ export const push = mutation({
     userKey: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query('users')
-      .filter((q) => q.eq(q.field('passwordHash'), args.userKey))
-      .first();
-    if (user == null) {
-      throw new Error('user not found');
-    }
+    const user = await getOrCreateUser(ctx, args.userKey);
     const space = await getOrCreateUserSpace(ctx, user._id);
     // 1. Create a new ReplicacheClientGroup if necessary.
     const clientGroupId = await getOrInitializeClientGroupId(
@@ -304,6 +298,39 @@ export const push = mutation({
           } else {
             ctx.db.patch(dayDb._id, {
               wakeUp: mutation.args.wakeUp,
+              lastModifiedVersion: newSpaceVersion,
+              deleted: false,
+            });
+          }
+          break;
+        }
+        case 'setDinner': {
+          const dayDb = await ctx.db
+            .query('days')
+            .filter((q) => q.eq(q.field('id'), mutation.args.id))
+            .first();
+          if (dayDb == null) {
+            await ctx.db.insert('days', {
+              coffee: null,
+              date: mutation.args.date,
+              dinner: {
+                size: mutation.args.size,
+                time: null,
+              },
+              wakeUp: null,
+              poops: [],
+              spaceId: space._id,
+              id: mutation.args.id,
+
+              lastModifiedVersion: newSpaceVersion,
+              deleted: false,
+            });
+          } else {
+            ctx.db.patch(dayDb._id, {
+              dinner: {
+                size: mutation.args.size,
+                time: null,
+              },
               lastModifiedVersion: newSpaceVersion,
               deleted: false,
             });
