@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
@@ -18,8 +19,36 @@ type envVars struct {
 
 var log = logrus.New()
 
-func run() error {
+var bearerRegexp = regexp.MustCompile(`^[Bb]earer (.+)$`)
 
+func parseAuthFromHeader(c *gin.Context) (string, error) {
+	auth := c.GetHeader("Authorization")
+	if auth == "" {
+		return "", fmt.Errorf("no Authorization header")
+	}
+	matches := bearerRegexp.FindStringSubmatch(auth)
+	if matches == nil {
+		return "", UserError{
+			internalMessage: "invalid authorization header",
+			Message:         "unauthorized",
+		}
+	}
+	return matches[1], nil
+}
+
+func logError(err error) {
+	fields := logrus.Fields{
+		"err": err,
+	}
+	var userErr UserError
+	if errors.As(err, &userErr) {
+		fmt.Println("internal message: ", userErr.internalMessage)
+		fields["internal_message"] = userErr.internalMessage
+	}
+	log.WithFields(fields).Error("error in handler")
+}
+
+func run() error {
 	var env envVars
 	if err := envvar.Parse(&env); err != nil {
 		return fmt.Errorf("could not parse env vars: %w", err)
@@ -44,6 +73,15 @@ func run() error {
 	})
 
 	r.POST("/push", func(c *gin.Context) {
+		auth, err := parseAuthFromHeader(c)
+		if err != nil {
+			logError(err)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "unauthorized",
+			})
+			return
+		}
+
 		var data pushRequest
 		if err := c.BindJSON(&data); err != nil {
 			log.WithFields(logrus.Fields{
@@ -54,17 +92,9 @@ func run() error {
 			})
 			return
 		}
-		resp, err := push(c, db, "foobarbaz", "26915643-db30-4cec-87b0-e75d36a8138e", data)
+		resp, err := push(c, db, auth, data)
 		if err != nil {
-			fields := logrus.Fields{
-				"err": err,
-			}
-			var userErr UserError
-			if errors.As(err, &userErr) {
-				fmt.Println("internal message: ", userErr.internalMessage)
-				fields["internal_message"] = userErr.internalMessage
-			}
-			log.WithFields(fields).Error("error in handler")
+			logError(err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"message": "error",
 			})

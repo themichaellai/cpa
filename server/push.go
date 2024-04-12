@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
@@ -92,7 +93,6 @@ func getOrCreateSpace(
 	ctx context.Context,
 	tx *sqlx.Tx,
 	userId int64,
-	spaceExternalId string,
 ) (space, error) {
 	var s space
 	if err := tx.GetContext(ctx, &s, `
@@ -102,17 +102,21 @@ func getOrCreateSpace(
       version,
       user_id
     from spaces
-    where external_id=$1
-  `, spaceExternalId); err != nil {
+    where user_id=$1
+  `, userId); err != nil {
 		if err != sql.ErrNoRows {
 			return space{}, fmt.Errorf("could not query space: %w", err)
+		}
+		newSpaceExternalId, err := uuid.NewRandom()
+		if err != nil {
+			return space{}, fmt.Errorf("getOrCreateSpace: %w", err)
 		}
 		var newSpace space
 		if err := tx.GetContext(ctx, &newSpace, `
       INSERT INTO spaces (external_id, version, user_id)
       VALUES ($1, $2, $3)
       RETURNING id, external_id, version, user_id
-    `, spaceExternalId, 0, userId); err != nil {
+    `, newSpaceExternalId, 0, userId); err != nil {
 			return space{}, fmt.Errorf("could not insert space: %w", err)
 		}
 		return newSpace, nil
@@ -124,13 +128,28 @@ func push(
 	ctx context.Context,
 	db *sqlx.DB,
 	userPassword string,
-	spaceExternalId string,
 	req pushRequest,
 ) (pushResponse, error) {
-	user, err := getOrCreateUser(ctx, db, userPassword)
+	type userSpace struct {
+		user  user
+		space space
+	}
+	us, err := runInTransaction(ctx, db, func(tx *sqlx.Tx) (userSpace, error) {
+		u, err := getOrCreateUser(ctx, tx, userPassword)
+		if err != nil {
+			return userSpace{}, err
+		}
+		s, err := getOrCreateSpace(ctx, tx, u.Id)
+		if err != nil {
+			return userSpace{}, err
+		}
+		return userSpace{u, s}, nil
+	})
 	if err != nil {
 		return pushResponse{}, err
 	}
+	user := us.user
+	space := us.space
 	for _, mutation := range req.Mutations {
 		if _, err := runInTransaction(ctx, db, func(tx *sqlx.Tx) (struct{}, error) {
 			//errorMode := false
@@ -159,7 +178,7 @@ func push(
 					}
 				}
 				// 5. Verify the specified client group is part of the requesting space.
-				if clientGroup.SpaceExternalId != spaceExternalId {
+				if clientGroup.SpaceExternalId != space.ExternalId {
 					return struct{}{}, UserError{
 						Message:         "client group not found",
 						internalMessage: "client group not in space",
@@ -199,10 +218,7 @@ func push(
 			// 8. let nextMutationID = client.lastMutationID + 1
 			nextMutationID := replicacheClient.LastMutationId + 1
 			// 9. Read the ReplicacheSpace for request.params.spaceID
-			space, err := getOrCreateSpace(ctx, tx, user.Id, spaceExternalId)
-			if err != nil {
-				return struct{}{}, err
-			}
+			// Associating space with user - done earlier
 
 			// 10. let nextVersion = replicacheSpace.version + 1
 			nextVersion := space.Version + 1

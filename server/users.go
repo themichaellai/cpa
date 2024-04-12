@@ -21,7 +21,7 @@ var salt = []byte("chemoserotherapy-inbreather-glummy")
 
 func getOrCreateUser(
 	ctx context.Context,
-	db *sqlx.DB,
+	db *sqlx.Tx,
 	password string,
 ) (user, error) {
 	hash := hex.EncodeToString(argon2.IDKey([]byte(password), salt, 3, 64*1024, 2, 32))
