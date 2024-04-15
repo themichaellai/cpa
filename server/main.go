@@ -103,6 +103,37 @@ func run() error {
 		c.JSON(http.StatusOK, resp)
 	})
 
+	r.POST("/pull", func(c *gin.Context) {
+		auth, err := parseAuthFromHeader(c)
+		if err != nil {
+			logError(err)
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "unauthorized",
+			})
+			return
+		}
+
+		var data pullRequest
+		if err := c.BindJSON(&data); err != nil {
+			log.WithFields(logrus.Fields{
+				"err": err,
+			}).Error("error")
+			c.JSON(http.StatusBadRequest, gin.H{
+				"message": "error",
+			})
+			return
+		}
+		resp, err := pull(c, db, auth, data)
+		if err != nil {
+			logError(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "error",
+			})
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+	})
+
 	return r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
 }
 

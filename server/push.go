@@ -18,7 +18,7 @@ type mutationAddDay struct {
 }
 
 type pushRequest struct {
-	ClientGroupID string     `json:"clientGroupID"`
+	ClientGroupId string     `json:"clientGroupID"`
 	Mutations     []mutation `json:"mutations"`
 }
 
@@ -37,6 +37,7 @@ type pushResponse struct {
 }
 
 type clientGroupRow struct {
+	Id              int64  `db:"id" json:"-"`
 	ExternalId      string `db:"external_id"`
 	SpaceExternalId string `db:"space_external_id"`
 	UserId          int64  `db:"user_id"`
@@ -124,12 +125,36 @@ func getOrCreateSpace(
 	return s, nil
 }
 
-func push(
+func getClientGroup(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	clientGroupId string,
+) (*clientGroupRow, error) {
+	var clientGroup clientGroupRow
+	if err := tx.GetContext(ctx, &clientGroup, `
+    SELECT
+      replicache_client_groups.id as "id",
+      replicache_client_groups.external_id as "external_id",
+      spaces.external_id as "space_external_id",
+      replicache_client_groups.user_id as "user_id"
+    from replicache_client_groups
+    join spaces
+      on replicache_client_groups.space_id = spaces.id
+    where replicache_client_groups.external_id=$1
+  `, clientGroupId); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, fmt.Errorf("could not query client group: %w", err)
+		}
+		return nil, nil
+	}
+	return &clientGroup, nil
+}
+
+func getUserAndSpace(
 	ctx context.Context,
 	db *sqlx.DB,
 	userPassword string,
-	req pushRequest,
-) (pushResponse, error) {
+) (user, space, error) {
 	type userSpace struct {
 		user  user
 		space space
@@ -146,30 +171,31 @@ func push(
 		return userSpace{u, s}, nil
 	})
 	if err != nil {
+		return user{}, space{}, err
+	}
+	return us.user, us.space, nil
+}
+
+func push(
+	ctx context.Context,
+	db *sqlx.DB,
+	userPassword string,
+	req pushRequest,
+) (pushResponse, error) {
+	user, space, err := getUserAndSpace(ctx, db, userPassword)
+	if err != nil {
 		return pushResponse{}, err
 	}
-	user := us.user
-	space := us.space
 	for _, mutation := range req.Mutations {
 		if _, err := runInTransaction(ctx, db, func(tx *sqlx.Tx) (struct{}, error) {
 			//errorMode := false
 			// 3. Read the ReplicacheClientGroup for body.clientGroupID from the
 			// database, or default to: { id: body.clientGroupID, spaceID, userID }
-			var clientGroup clientGroupRow
-			if err := tx.GetContext(ctx, &clientGroup, `
-        SELECT
-          replicache_client_groups.external_id as "external_id",
-          spaces.external_id as "space_external_id",
-          replicache_client_groups.user_id as "user_id"
-        from replicache_client_groups
-        join spaces
-          on replicache_client_groups.space_id = spaces.id
-        where replicache_client_groups.external_id=$1
-      `, req.ClientGroupID); err != nil {
-				if err != sql.ErrNoRows {
-					return struct{}{}, fmt.Errorf("could not query client group: %w", err)
-				}
-			} else {
+			clientGroup, err := getClientGroup(ctx, tx, req.ClientGroupId)
+			if err != nil {
+				return struct{}{}, fmt.Errorf("could not get client group: %w", err)
+			}
+			if clientGroup != nil {
 				// 4. Verify the requesting user owns the specified client group.
 				if clientGroup.UserId != user.Id {
 					return struct{}{}, UserError{
@@ -205,13 +231,13 @@ func push(
         join replicache_client_groups
           on replicache_client_groups.id = replicache_clients.replicache_client_group_id
         where replicache_clients.external_id=$1
-      `, req.ClientGroupID); err != nil {
+      `, req.ClientGroupId); err != nil {
 				if err != sql.ErrNoRows {
 					return struct{}{}, fmt.Errorf("could not query replicache client: %w", err)
 				}
 			} else {
 				// 7. Verify the requesting client group owns the requested client.
-				if replicacheClient.ClientGroupExternalId != req.ClientGroupID {
+				if replicacheClient.ClientGroupExternalId != req.ClientGroupId {
 					return struct{}{}, UserError{Message: "replicache client not found"}
 				}
 			}
@@ -305,7 +331,7 @@ func push(
           space_id,
           user_id
         ) VALUES ($1, $2, $3) ON CONFLICT (external_id) DO NOTHING
-      `, req.ClientGroupID, space.Id, space.UserId); err != nil {
+      `, req.ClientGroupId, space.Id, space.UserId); err != nil {
 				return struct{}{}, fmt.Errorf("could not insert replicache client group: %w", err)
 			}
 			var clientGroupId int64
@@ -313,7 +339,7 @@ func push(
         SELECT id
         FROM replicache_client_groups
         WHERE external_id = $1
-      `, req.ClientGroupID); err != nil {
+      `, req.ClientGroupId); err != nil {
 				return struct{}{}, fmt.Errorf("could not re-query replicache client group: %w", err)
 			}
 			// 16. Write ReplicacheClient:
