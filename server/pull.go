@@ -19,7 +19,7 @@ type pullRequest struct {
 	// the first pull from this client.
 	Cookie        *int64 `json:"cookie"`
 	ProfileID     string `json:"profileID"`
-	SchemaVersion int64  `json:"schemaVersion"`
+	SchemaVersion string `json:"schemaVersion"`
 }
 
 // type PatchOperation =
@@ -158,8 +158,12 @@ func pull(
 			return pullResponse{}, err
 		}
 
+		var clientGroupId int64 = -1
+		if clientGroup != nil {
+			clientGroupId = clientGroup.Id
+		}
 		// 8. Read all ReplicacheClient records for the requested client group that have lastModifiedVersion > prevVersion.
-		clients, err := getUpdatedClients(ctx, tx, clientGroup.Id, previousVersion)
+		clients, err := getUpdatedClients(ctx, tx, clientGroupId, previousVersion)
 		if err != nil {
 			return pullResponse{}, err
 		}

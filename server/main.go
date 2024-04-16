@@ -48,6 +48,12 @@ func logError(err error) {
 	log.WithFields(fields).Error("error in handler")
 }
 
+func setCorsHeaders(c *gin.Context) {
+	c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
+	c.Header("Access-Control-Allow-Methods", "POST")
+	c.Header("Access-Control-Allow-Headers", "*")
+}
+
 func run() error {
 	var env envVars
 	if err := envvar.Parse(&env); err != nil {
@@ -72,7 +78,13 @@ func run() error {
 		})
 	})
 
+	r.OPTIONS("/push", func(c *gin.Context) {
+		setCorsHeaders(c)
+		c.Status(http.StatusOK)
+	})
+
 	r.POST("/push", func(c *gin.Context) {
+		setCorsHeaders(c)
 		auth, err := parseAuthFromHeader(c)
 		if err != nil {
 			logError(err)
@@ -103,7 +115,13 @@ func run() error {
 		c.JSON(http.StatusOK, resp)
 	})
 
+	r.OPTIONS("/pull", func(c *gin.Context) {
+		setCorsHeaders(c)
+		c.Status(http.StatusOK)
+	})
+
 	r.POST("/pull", func(c *gin.Context) {
+		setCorsHeaders(c)
 		auth, err := parseAuthFromHeader(c)
 		if err != nil {
 			logError(err)
