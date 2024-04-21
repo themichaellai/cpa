@@ -265,37 +265,20 @@ func push(
 				}
 			}
 
-			type replicacheClientRow struct {
-				ExternalId            string `db:"external_id"`
-				ClientGroupExternalId string `db:"client_group_external_id"`
-				LastMutationId        int64  `db:"last_mutation_id"`
-				LastModifiedVersion   int64  `db:"last_modified_version"`
-			}
 			// 6. Read the ReplicacheClient for mutation.clientID or default to: ...
 			// { id: mutation.clientID, clientGroupID: body.clientGroupID, lastMutationID: 0, lastModifiedVersion }
-			var replicacheClient replicacheClientRow
-			if err := tx.GetContext(ctx, &replicacheClient, `
-        SELECT
-          replicache_clients.external_id as "external_id",
-          replicache_client_groups.external_id as "client_group_external_id",
-          last_mutation_id as "last_mutation_id",
-          last_modified_version as "last_modified_version"
-        from replicache_clients
-        join replicache_client_groups
-          on replicache_client_groups.id = replicache_clients.replicache_client_group_id
-        where replicache_clients.external_id=$1
-      `, req.ClientGroupId); err != nil {
-				if err != sql.ErrNoRows {
-					return struct{}{}, fmt.Errorf("could not query replicache client: %w", err)
-				}
-			} else {
+			replicacheClient, hasReplicacheClient, err := db.ReplicacheClientGet(ctx, tx, mutation.ClientId)
+			if err != nil {
+				return struct{}{}, err
+			}
+			var nextMutationID int64 = 1
+			if hasReplicacheClient {
 				// 7. Verify the requesting client group owns the requested client.
 				if replicacheClient.ClientGroupExternalId != req.ClientGroupId {
 					return struct{}{}, UserError{Message: "replicache client not found"}
 				}
+				nextMutationID = replicacheClient.LastMutationId + 1
 			}
-			// 8. let nextMutationID = client.lastMutationID + 1
-			nextMutationID := replicacheClient.LastMutationId + 1
 			// 9. Read the ReplicacheSpace for request.params.spaceID
 			// Associating space with user - done earlier
 
@@ -303,6 +286,7 @@ func push(
 			nextVersion := space.Version + 1
 			// 11. Rollback transaction and skip this mutation if already processed
 			// (mutation.id < nextMutationID)
+			fmt.Println("mutation ids", mutation.Id, nextMutationID)
 			if mutation.Id < nextMutationID {
 				return struct{}{}, fmt.Errorf("mutation already processed")
 			}
@@ -399,35 +383,17 @@ func push(
 			}
 
 			// 14. Write updated ReplicacheSpace
-			// TODO: need to update version
-			// 15. Write ReplicacheClientGroup:
-			if _, err := tx.ExecContext(ctx, `
-        INSERT INTO replicache_client_groups (
-          external_id,
-          space_id,
-          user_id
-        ) VALUES ($1, $2, $3) ON CONFLICT (external_id) DO NOTHING
-      `, req.ClientGroupId, space.Id, space.UserId); err != nil {
-				return struct{}{}, fmt.Errorf("could not insert replicache client group: %w", err)
+			if err := db.SetSpaceVersion(ctx, tx, space.Id, nextVersion); err != nil {
+				return struct{}{}, fmt.Errorf("could not set space version: %w", err)
 			}
-			var clientGroupId int64
-			if err := tx.GetContext(ctx, &clientGroupId, `
-        SELECT id
-        FROM replicache_client_groups
-        WHERE external_id = $1
-      `, req.ClientGroupId); err != nil {
-				return struct{}{}, fmt.Errorf("could not re-query replicache client group: %w", err)
+			// 15. Write ReplicacheClientGroup:
+			clientGroupId, err := db.ReplicacheClientGroupGetOrCreate(ctx, tx, req.ClientGroupId, int64(space.Id), space.UserId)
+			if err != nil {
+				return struct{}{}, err
 			}
 			// 16. Write ReplicacheClient:
-			if _, err := tx.ExecContext(ctx, `
-        INSERT INTO replicache_clients (
-          external_id,
-          replicache_client_group_id,
-          last_mutation_id,
-          last_modified_version
-        ) VALUES ($1, $2, $3, $4) ON CONFLICT (external_id) DO NOTHING
-      `, mutation.ClientId, clientGroupId, nextMutationID, nextVersion); err != nil {
-				return struct{}{}, fmt.Errorf("could not insert replicache client: %w", err)
+			if err := db.ReplicacheClientSet(ctx, tx, mutation.ClientId, int32(clientGroupId), nextMutationID, nextVersion); err != nil {
+				return struct{}{}, err
 			}
 			return struct{}{}, nil
 		}); err != nil {

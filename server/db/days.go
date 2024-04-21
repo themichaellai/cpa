@@ -49,7 +49,6 @@ func getOrCreateDay(
 		if err := tx.GetContext(ctx, &newDayId, newDayQuery, newDayArgs...); err != nil {
 			return 0, fmt.Errorf("could not insert day: %w", err)
 		}
-		fmt.Println("newDayId", newDayId)
 		return newDayId.ID, nil
 	}
 	return existingDayId.ID, nil
@@ -72,14 +71,6 @@ func SetWakeUpTime(
 	if err != nil {
 		return fmt.Errorf("SetWakeUpTime: %w", err)
 	}
-	fmt.Println("dayId", dayId)
-	foo := Days.UPDATE(Days.WakeUpTime, Days.WakeUpTimeTz).
-		SET(
-			timeToSqliteTime(wakeUpTime),
-			sqlite.String(wakeUpTimeTz.String()),
-		).
-		WHERE(Days.ID.EQ(sqlite.Int32(dayId)))
-	fmt.Println(foo.DebugSql())
 	res, err := Days.UPDATE(Days.WakeUpTime, Days.WakeUpTimeTz).
 		SET(
 			timeToSqliteTime(wakeUpTime),
