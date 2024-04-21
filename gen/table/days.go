@@ -21,9 +21,12 @@ type daysTable struct {
 	ExternalID          sqlite.ColumnString
 	Date                sqlite.ColumnString
 	CoffeeTime          sqlite.ColumnString
+	CoffeeTimeTz        sqlite.ColumnString
 	DinnerTime          sqlite.ColumnString
+	DinnerTimeTz        sqlite.ColumnString
 	DinnerSize          sqlite.ColumnString
 	WakeUpTime          sqlite.ColumnString
+	WakeUpTimeTz        sqlite.ColumnString
 	LastModifiedVersion sqlite.ColumnInteger
 	SpaceID             sqlite.ColumnInteger
 	DeletedAt           sqlite.ColumnString
@@ -71,14 +74,17 @@ func newDaysTableImpl(schemaName, tableName, alias string) daysTable {
 		ExternalIDColumn          = sqlite.StringColumn("external_id")
 		DateColumn                = sqlite.StringColumn("date")
 		CoffeeTimeColumn          = sqlite.StringColumn("coffee_time")
+		CoffeeTimeTzColumn        = sqlite.StringColumn("coffee_time_tz")
 		DinnerTimeColumn          = sqlite.StringColumn("dinner_time")
+		DinnerTimeTzColumn        = sqlite.StringColumn("dinner_time_tz")
 		DinnerSizeColumn          = sqlite.StringColumn("dinner_size")
 		WakeUpTimeColumn          = sqlite.StringColumn("wake_up_time")
+		WakeUpTimeTzColumn        = sqlite.StringColumn("wake_up_time_tz")
 		LastModifiedVersionColumn = sqlite.IntegerColumn("last_modified_version")
 		SpaceIDColumn             = sqlite.IntegerColumn("space_id")
 		DeletedAtColumn           = sqlite.StringColumn("deleted_at")
-		allColumns                = sqlite.ColumnList{IDColumn, ExternalIDColumn, DateColumn, CoffeeTimeColumn, DinnerTimeColumn, DinnerSizeColumn, WakeUpTimeColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn}
-		mutableColumns            = sqlite.ColumnList{ExternalIDColumn, DateColumn, CoffeeTimeColumn, DinnerTimeColumn, DinnerSizeColumn, WakeUpTimeColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn}
+		allColumns                = sqlite.ColumnList{IDColumn, ExternalIDColumn, DateColumn, CoffeeTimeColumn, CoffeeTimeTzColumn, DinnerTimeColumn, DinnerTimeTzColumn, DinnerSizeColumn, WakeUpTimeColumn, WakeUpTimeTzColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn}
+		mutableColumns            = sqlite.ColumnList{ExternalIDColumn, DateColumn, CoffeeTimeColumn, CoffeeTimeTzColumn, DinnerTimeColumn, DinnerTimeTzColumn, DinnerSizeColumn, WakeUpTimeColumn, WakeUpTimeTzColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn}
 	)
 
 	return daysTable{
@@ -89,9 +95,12 @@ func newDaysTableImpl(schemaName, tableName, alias string) daysTable {
 		ExternalID:          ExternalIDColumn,
 		Date:                DateColumn,
 		CoffeeTime:          CoffeeTimeColumn,
+		CoffeeTimeTz:        CoffeeTimeTzColumn,
 		DinnerTime:          DinnerTimeColumn,
+		DinnerTimeTz:        DinnerTimeTzColumn,
 		DinnerSize:          DinnerSizeColumn,
 		WakeUpTime:          WakeUpTimeColumn,
+		WakeUpTimeTz:        WakeUpTimeTzColumn,
 		LastModifiedVersion: LastModifiedVersionColumn,
 		SpaceID:             SpaceIDColumn,
 		DeletedAt:           DeletedAtColumn,

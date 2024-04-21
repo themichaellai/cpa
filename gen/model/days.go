@@ -12,9 +12,12 @@ type Days struct {
 	ExternalID          string
 	Date                string
 	CoffeeTime          *string
+	CoffeeTimeTz        *string
 	DinnerTime          *string
+	DinnerTimeTz        *string
 	DinnerSize          *string
 	WakeUpTime          *string
+	WakeUpTimeTz        *string
 	LastModifiedVersion *int32
 	SpaceID             int32
 	DeletedAt           *string

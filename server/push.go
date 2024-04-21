@@ -6,15 +6,68 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	"github.com/themichaellai/cpa/server/db"
 )
 
 type mutationAddDay struct {
 	Date string `json:"date"`
 	Id   string `json:"id"`
+}
+
+type mutationSetWakeUp struct {
+	Date   string
+	Id     string
+	Time   time.Time
+	TimeTz *time.Location
+}
+
+var timeZoneRegexp = regexp.MustCompile(`^([^[]+)\[(.+)\]$`)
+
+func parseJavaTimeString(s string) (t time.Time, timezone *time.Location, _ error) {
+	timeStringMatch := timeZoneRegexp.FindStringSubmatch(s)
+	if timeStringMatch == nil {
+		return time.Time{}, nil, fmt.Errorf("could not parse time")
+	}
+	t, err := time.Parse(time.RFC3339, timeStringMatch[1])
+	if err != nil {
+		return time.Time{}, nil, fmt.Errorf("invalid time format: %w", err)
+	}
+	loc, err := time.LoadLocation(timeStringMatch[2])
+	if err != nil {
+		return time.Time{}, nil, fmt.Errorf("invalid timezone: %w", err)
+	}
+	return t, loc, nil
+}
+
+func parseMutationSetWakeUp(bs []byte) (mutationSetWakeUp, error) {
+	type mutationSetWakeUpRaw struct {
+		Date string `json:"date"`
+		Id   string `json:"id"`
+		Time string `json:"time"`
+	}
+	var args mutationSetWakeUpRaw
+	if err := json.Unmarshal(bs, &args); err != nil {
+		msg := "could not unmarshal set wake up args"
+		log.WithFields(logrus.Fields{
+			"args": string(bs),
+		}).Error(msg)
+		return mutationSetWakeUp{}, fmt.Errorf("%s: %w", msg, err)
+	}
+	t, tz, err := parseJavaTimeString(args.Time)
+	if err != nil {
+		return mutationSetWakeUp{}, fmt.Errorf("could not parse wake up: %w", err)
+	}
+	return mutationSetWakeUp{
+		Date:   args.Date,
+		Id:     args.Id,
+		Time:   t,
+		TimeTz: tz,
+	}, nil
 }
 
 type pushRequest struct {
@@ -44,7 +97,7 @@ type clientGroupRow struct {
 }
 
 type space struct {
-	Id         int64  `db:"id"`
+	Id         int32  `db:"id"`
 	ExternalId string `db:"external_id"`
 	UserId     int64  `db:"user_id"`
 	Version    int64  `db:"version"`
@@ -178,16 +231,16 @@ func getUserAndSpace(
 
 func push(
 	ctx context.Context,
-	db *sqlx.DB,
+	dbClient *sqlx.DB,
 	userPassword string,
 	req pushRequest,
 ) (pushResponse, error) {
-	user, space, err := getUserAndSpace(ctx, db, userPassword)
+	user, space, err := getUserAndSpace(ctx, dbClient, userPassword)
 	if err != nil {
 		return pushResponse{}, err
 	}
 	for _, mutation := range req.Mutations {
-		if _, err := runInTransaction(ctx, db, func(tx *sqlx.Tx) (struct{}, error) {
+		if _, err := runInTransaction(ctx, dbClient, func(tx *sqlx.Tx) (struct{}, error) {
 			//errorMode := false
 			// 3. Read the ReplicacheClientGroup for body.clientGroupID from the
 			// database, or default to: { id: body.clientGroupID, spaceID, userID }
@@ -319,11 +372,34 @@ func push(
 						}
 					}
 				}
+			case "setWakeUp":
+				{
+					mutationSetWakeUp, err := parseMutationSetWakeUp(mutation.Args)
+					if err != nil {
+						return struct{}{}, err
+					}
+					log.WithFields(logrus.Fields{
+						"space_id": space.Id,
+						"args":     mutationSetWakeUp,
+					}).Info("running set wake up mutation")
+					if err := db.SetWakeUpTime(
+						ctx,
+						tx,
+						space.Id,
+						mutationSetWakeUp.Date,
+						mutationSetWakeUp.Id,
+						mutationSetWakeUp.Time,
+						mutationSetWakeUp.TimeTz,
+					); err != nil {
+						return struct{}{}, fmt.Errorf("could not set wake up time: %w", err)
+					}
+				}
 			default:
 				return struct{}{}, fmt.Errorf("unknown mutation: \"%s\"", mutation.Name)
 			}
 
-			// 14. Write ReplicacheSpace: (done above)
+			// 14. Write updated ReplicacheSpace
+			// TODO: need to update version
 			// 15. Write ReplicacheClientGroup:
 			if _, err := tx.ExecContext(ctx, `
         INSERT INTO replicache_client_groups (

@@ -48,14 +48,14 @@ type dayDb struct {
 }
 
 func getDays(
-	context context.Context,
+	ctx context.Context,
 	tx *sqlx.Tx,
-	spaceId int64,
+	spaceId int32,
 	previousVersion int64,
 ) ([]dayDb, error) {
 	stmt := sqlite.SELECT(Days.AllColumns).FROM(Days).
 		WHERE(Days.DeletedAt.IS_NULL().
-			AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))).
+			AND(Days.SpaceID.EQ(sqlite.Int32(spaceId))).
 			AND(Days.LastModifiedVersion.GT(sqlite.Int64(previousVersion))),
 		)
 	var days []dayDb

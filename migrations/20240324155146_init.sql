@@ -6,11 +6,14 @@ CREATE TABLE IF NOT EXISTS days (
   date TEXT NOT NULL,
 
   coffee_time TEXT,
+  coffee_time_tz TEXT,
 
   dinner_time TEXT,
+  dinner_time_tz TEXT,
   dinner_size TEXT CHECK(dinner_size IN ('regular', 'big')),
 
   wake_up_time TEXT,
+  wake_up_time_tz TEXT,
   last_modified_version INTEGER,
   space_id INTEGER NOT NULL,
 
@@ -27,6 +30,7 @@ CREATE TABLE IF NOT EXISTS poops (
   day_id INTEGER NOT NULL,
 
   time TEXT NOT NULL,
+  time_tz TEXT NOT NULL,
   time_into_day_minutes INTEGER,
 
   deleted_at TEXT,
