@@ -18,7 +18,7 @@ type Days struct {
 	DinnerSize          *string
 	WakeUpTime          *string
 	WakeUpTimeTz        *string
-	LastModifiedVersion *int32
+	LastModifiedVersion int32
 	SpaceID             int32
 	DeletedAt           *string
 }

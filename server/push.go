@@ -97,7 +97,7 @@ type clientGroupRow struct {
 }
 
 type space struct {
-	Id         int32  `db:"id"`
+	Id         int64  `db:"id"`
 	ExternalId string `db:"external_id"`
 	UserId     int64  `db:"user_id"`
 	Version    int64  `db:"version"`
@@ -286,7 +286,6 @@ func push(
 			nextVersion := space.Version + 1
 			// 11. Rollback transaction and skip this mutation if already processed
 			// (mutation.id < nextMutationID)
-			fmt.Println("mutation ids", mutation.Id, nextMutationID)
 			if mutation.Id < nextMutationID {
 				return struct{}{}, fmt.Errorf("mutation already processed")
 			}
@@ -370,6 +369,7 @@ func push(
 						ctx,
 						tx,
 						space.Id,
+						nextVersion,
 						mutationSetWakeUp.Date,
 						mutationSetWakeUp.Id,
 						mutationSetWakeUp.Time,

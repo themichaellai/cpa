@@ -12,12 +12,12 @@ import (
 func SetSpaceVersion(
 	ctx context.Context,
 	tx *sqlx.Tx,
-	spaceId int32,
+	spaceId int64,
 	version int64,
 ) error {
 	res, err := Spaces.UPDATE(Spaces.Version).
 		SET(sqlite.Int64(version)).
-		WHERE(Spaces.ID.EQ(sqlite.Int32(spaceId))).
+		WHERE(Spaces.ID.EQ(sqlite.Int64(spaceId))).
 		ExecContext(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("could not update space version: %w", err)

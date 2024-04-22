@@ -50,16 +50,16 @@ type dayDb struct {
 func getDays(
 	ctx context.Context,
 	tx *sqlx.Tx,
-	spaceId int32,
+	spaceId int64,
 	previousVersion int64,
 ) ([]dayDb, error) {
 	stmt := sqlite.SELECT(Days.AllColumns).FROM(Days).
 		WHERE(Days.DeletedAt.IS_NULL().
-			AND(Days.SpaceID.EQ(sqlite.Int32(spaceId))).
+			AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))).
 			AND(Days.LastModifiedVersion.GT(sqlite.Int64(previousVersion))),
 		)
 	var days []dayDb
-	if err := stmt.Query(tx, &days); err != nil {
+	if err := stmt.QueryContext(ctx, tx, &days); err != nil {
 		return nil, fmt.Errorf("could not get days: %w", err)
 	}
 	return days, nil

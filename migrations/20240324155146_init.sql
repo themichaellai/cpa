@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS days (
 
   wake_up_time TEXT,
   wake_up_time_tz TEXT,
-  last_modified_version INTEGER,
+  last_modified_version INTEGER NOT NULL,
   space_id INTEGER NOT NULL,
 
   deleted_at TEXT,

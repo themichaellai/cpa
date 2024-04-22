@@ -15,7 +15,7 @@ import (
 func getOrCreateDay(
 	ctx context.Context,
 	tx *sqlx.Tx,
-	spaceId int32,
+	spaceId int64,
 	date string,
 	dayExternalId string,
 ) (dayId int32, _ error) {
@@ -29,7 +29,7 @@ func getOrCreateDay(
 		WHERE(
 			Days.Date.EQ(sqlite.String(date)).
 				AND(Days.ExternalID.EQ(sqlite.String(dayExternalId))).
-				AND(Days.SpaceID.EQ(sqlite.Int32(spaceId))),
+				AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))),
 		).Sql()
 
 	if err := tx.GetContext(ctx, &existingDayId, existingDayQuery, existingDayArgs...); err != nil {
@@ -40,10 +40,12 @@ func getOrCreateDay(
 			Days.ExternalID,
 			Days.Date,
 			Days.SpaceID,
+			Days.LastModifiedVersion,
 		).VALUES(
 			sqlite.String(dayExternalId),
 			sqlite.String(date),
-			sqlite.Int32(spaceId),
+			sqlite.Int64(spaceId),
+			sqlite.Int64(0),
 		).RETURNING(Days.ID.AS("id")).Sql()
 		var newDayId dayIdResult
 		if err := tx.GetContext(ctx, &newDayId, newDayQuery, newDayArgs...); err != nil {
@@ -61,7 +63,8 @@ func timeToSqliteTime(t time.Time) sqlite.DateTimeExpression {
 func SetWakeUpTime(
 	ctx context.Context,
 	tx *sqlx.Tx,
-	spaceId int32,
+	spaceId int64,
+	lastModifiedVersion int64,
 	date string,
 	dayExternalId string,
 	wakeUpTime time.Time,
@@ -71,10 +74,15 @@ func SetWakeUpTime(
 	if err != nil {
 		return fmt.Errorf("SetWakeUpTime: %w", err)
 	}
-	res, err := Days.UPDATE(Days.WakeUpTime, Days.WakeUpTimeTz).
+	res, err := Days.UPDATE(
+		Days.WakeUpTime,
+		Days.WakeUpTimeTz,
+		Days.LastModifiedVersion,
+	).
 		SET(
 			timeToSqliteTime(wakeUpTime),
 			sqlite.String(wakeUpTimeTz.String()),
+			sqlite.Int64(lastModifiedVersion),
 		).
 		WHERE(Days.ID.EQ(sqlite.Int32(dayId))).
 		ExecContext(ctx, tx)
