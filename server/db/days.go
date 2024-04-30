@@ -30,6 +30,13 @@ func ParseToDinnerSize(s string) (DinnerSize, bool) {
 	}
 }
 
+func (d *DinnerSize) ToSql() interface{} {
+	if d == nil {
+		return sqlite.NULL
+	}
+	return sqlite.String(string(*d))
+}
+
 func getOrCreateDay(
 	ctx context.Context,
 	tx *sqlx.Tx,
@@ -91,6 +98,7 @@ func SetDay(
 	dayExternalId string,
 	wakeUpTime *time.Time,
 	wakeUpTimeTz *time.Location,
+	dinnerSize *DinnerSize,
 ) error {
 	dayId, err := getOrCreateDay(ctx, tx, spaceId, date, dayExternalId)
 	if err != nil {
@@ -100,11 +108,13 @@ func SetDay(
 		Days.WakeUpTime,
 		Days.WakeUpTimeTz,
 		Days.LastModifiedVersion,
+		Days.DinnerSize,
 	).
 		SET(
 			timeToSqliteTime(wakeUpTime),
 			sqlite.String(wakeUpTimeTz.String()),
 			sqlite.Int64(lastModifiedVersion),
+			dinnerSize.ToSql(),
 		).
 		WHERE(Days.ID.EQ(sqlite.Int32(dayId))).
 		ExecContext(ctx, tx)

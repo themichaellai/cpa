@@ -52,7 +52,9 @@ func parseMutationSetDay(bs []byte) (mutationSetDay, error) {
 		WakeUp *struct {
 			Time *string `json:"time"`
 		} `json:"wakeUp"`
-		DinnerSize *string `json:"dinnerSize"`
+		Dinner *struct {
+			Size *string `json:"size"`
+		} `json:"dinner"`
 	}
 	var args mutationSetDayRaw
 	if err := json.Unmarshal(bs, &args); err != nil {
@@ -77,10 +79,10 @@ func parseMutationSetDay(bs []byte) (mutationSetDay, error) {
 		wakeUpTimeTz = tz
 	}
 	var dinnerSize *db.DinnerSize
-	if args.DinnerSize != nil {
-		dinnerSizeParsed, dinnerSizeOk := db.ParseToDinnerSize(*args.DinnerSize)
+	if args.Dinner != nil && args.Dinner.Size != nil {
+		dinnerSizeParsed, dinnerSizeOk := db.ParseToDinnerSize(*args.Dinner.Size)
 		if !dinnerSizeOk {
-			return mutationSetDay{}, fmt.Errorf("invalid dinner size: %s", *args.DinnerSize)
+			return mutationSetDay{}, fmt.Errorf("invalid dinner size: %s", *args.Dinner.Size)
 		}
 		dinnerSize = &dinnerSizeParsed
 	}
@@ -406,6 +408,7 @@ func push(
 						mutationSetWakeUp.Id,
 						mutationSetWakeUp.WakeUpTime,
 						mutationSetWakeUp.WakeUpTimeTz,
+						mutationSetWakeUp.DinnerSize,
 					); err != nil {
 						return struct{}{}, false, fmt.Errorf("could not set wake up time: %w", err)
 					}

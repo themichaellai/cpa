@@ -92,6 +92,11 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
         wakeUp: {
           time,
         },
+        dinner: {
+          size: dayRep
+            .chain((d) => Maybe.fromNullable(d.dinner?.size))
+            .orDefault('regular'),
+        },
       });
     });
   };
@@ -111,10 +116,18 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
       });
     });
     const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
-    rep?.mutate.setDinner({
+    const wakeUp = dayRep
+      .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
+      .map<{ time: string } | null>((time) => ({
+        time,
+      }));
+    rep?.mutate.setDay({
       date: selectedDate.toString(),
       id: repId,
-      size,
+      wakeUp: wakeUp.orDefault(null),
+      dinner: {
+        size,
+      },
     });
   };
 

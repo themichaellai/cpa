@@ -33,11 +33,15 @@ const mutators = {
       id,
       wakeUp,
       date,
+      dinner,
     }: {
       id: string;
       date: string;
       wakeUp: {
         time: string;
+      } | null;
+      dinner: {
+        size: 'regular' | 'big' | null;
       } | null;
     },
   ) {
@@ -45,55 +49,23 @@ const mutators = {
     if (day == null || typeof day !== 'object') {
       await tx.set(`day/${id}`, {
         coffee: null,
-        dinner: null,
-        wakeUp,
-        poops: [],
-        date,
-        id,
-      } satisfies FrontendDay);
-    } else {
-      await tx.set(`day/${id}`, {
-        ...day,
-        wakeUp,
-      });
-    }
-  },
-  async setDinner(
-    tx: WriteTransaction,
-    {
-      id,
-      date,
-      size,
-    }: {
-      id: string;
-      date: string;
-      size: null | 'regular' | 'big';
-    },
-  ) {
-    const day = await tx.get(`day/${id}`);
-    if (day == null || typeof day !== 'object' || 'length' in day) {
-      await tx.set(`day/${id}`, {
-        coffee: null,
-        dinner: {
-          size,
-          time: null,
-        },
-        wakeUp: null,
-        poops: [],
-        date,
-        id,
-      } satisfies FrontendDay);
-    } else {
-      await tx.set(`day/${id}`, {
-        ...day,
-        dinner: {
-          ...(typeof day.dinner === 'object' && !('length' in day)
-            ? day.dinner
+        dinner:
+          dinner == null
+            ? null
             : {
+                size: dinner.size,
                 time: null,
-              }),
-          size,
-        },
+              },
+        wakeUp,
+        poops: [],
+        date,
+        id,
+      } satisfies FrontendDay);
+    } else {
+      await tx.set(`day/${id}`, {
+        ...day,
+        wakeUp,
+        dinner,
       });
     }
   },

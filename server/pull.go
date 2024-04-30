@@ -75,12 +75,14 @@ type wakeUpResp struct {
 	Time string `json:"time"`
 }
 
+type dinnerResp struct {
+	Size *string `json:"size"`
+}
 type dayResp struct {
 	Id         string      `json:"id"`
 	Date       string      `json:"date"`
 	CoffeeTime *string     `json:"coffeeTime"`
-	DinnerTime *string     `json:"dinnerTime"`
-	DinnerSize *string     `json:"dinnerSize"`
+	Dinner     *dinnerResp `json:"dinner"`
 	WakeUpTime *wakeUpResp `json:"wakeUp"`
 	Poops      []poopResp  `json:"poops"`
 }
@@ -104,8 +106,9 @@ func dayDbToResp(day dayDb) (dayResp, error) {
 		Id:         day.ExternalID,
 		Date:       day.Date,
 		CoffeeTime: day.CoffeeTime,
-		DinnerTime: day.DinnerTime,
-		DinnerSize: day.DinnerSize,
+		Dinner: &dinnerResp{
+			Size: day.DinnerSize,
+		},
 		WakeUpTime: wakeUpTime,
 		Poops: func() []poopResp {
 			poops := []poopResp{}
