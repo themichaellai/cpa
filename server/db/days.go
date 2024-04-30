@@ -12,6 +12,24 @@ import (
 	. "github.com/themichaellai/cpa/gen/table"
 )
 
+type DinnerSize string
+
+const (
+	DinnerSizeRegular DinnerSize = "regular"
+	DinnerSizeBig     DinnerSize = "big"
+)
+
+func ParseToDinnerSize(s string) (DinnerSize, bool) {
+	switch s {
+	case "regular":
+		return DinnerSizeRegular, true
+	case "big":
+		return DinnerSizeBig, true
+	default:
+		return "", false
+	}
+}
+
 func getOrCreateDay(
 	ctx context.Context,
 	tx *sqlx.Tx,
@@ -56,18 +74,22 @@ func getOrCreateDay(
 	return existingDayId.ID, nil
 }
 
-func timeToSqliteTime(t time.Time) sqlite.DateTimeExpression {
+func timeToSqliteTime(t *time.Time) interface{} {
+	if t == nil {
+		return sqlite.NULL
+	}
+
 	return sqlite.DateTime(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), time.Duration(t.Nanosecond()))
 }
 
-func SetWakeUpTime(
+func SetDay(
 	ctx context.Context,
 	tx *sqlx.Tx,
 	spaceId int64,
 	lastModifiedVersion int64,
 	date string,
 	dayExternalId string,
-	wakeUpTime time.Time,
+	wakeUpTime *time.Time,
 	wakeUpTimeTz *time.Location,
 ) error {
 	dayId, err := getOrCreateDay(ctx, tx, spaceId, date, dayExternalId)

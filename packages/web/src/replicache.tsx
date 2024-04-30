@@ -27,7 +27,7 @@ const mutators = {
       date,
     });
   },
-  async setWakeUp(
+  async setDay(
     tx: WriteTransaction,
     {
       id,
@@ -114,8 +114,10 @@ const newRep = async (userKey: string) => {
   return new Replicache({
     name: `cpa-${hashedKey}`,
     licenseKey: REPLICACHE_LICENSE,
-    pushURL: 'https://glorious-mallard-686.convex.site/push',
-    pullURL: 'https://glorious-mallard-686.convex.site/pull',
+    //pushURL: 'https://glorious-mallard-686.convex.site/push',
+    //pullURL: 'https://glorious-mallard-686.convex.site/pull',
+    pushURL: 'http://localhost:8080/push',
+    pullURL: 'http://localhost:8080/pull',
     auth: `Bearer ${userKey}`,
     mutators,
     //pullInterval: 5000,

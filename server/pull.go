@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-jet/jet/v2/sqlite"
 	"github.com/jmoiron/sqlx"
@@ -70,24 +71,42 @@ type poopResp struct {
 	TimeIntoDayMins *int32 `json:"time_into_day_mins"`
 }
 
-type dayResp struct {
-	Id         string     `json:"id"`
-	Date       string     `json:"date"`
-	CoffeeTime *string    `json:"coffee_time"`
-	DinnerTime *string    `json:"dinner_time"`
-	DinnerSize *string    `json:"dinner_size"`
-	WakeUpTime *string    `json:"wake_up_time"`
-	Poops      []poopResp `json:"poops"`
+type wakeUpResp struct {
+	Time string `json:"time"`
 }
 
-func dayDbToResp(day dayDb) dayResp {
+type dayResp struct {
+	Id         string      `json:"id"`
+	Date       string      `json:"date"`
+	CoffeeTime *string     `json:"coffeeTime"`
+	DinnerTime *string     `json:"dinnerTime"`
+	DinnerSize *string     `json:"dinnerSize"`
+	WakeUpTime *wakeUpResp `json:"wakeUp"`
+	Poops      []poopResp  `json:"poops"`
+}
+
+func dayDbToResp(day dayDb) (dayResp, error) {
+	var wakeUpTime *wakeUpResp
+	if day.WakeUpTime != nil && day.WakeUpTimeTz != nil {
+		loc, err := time.LoadLocation(*day.WakeUpTimeTz)
+		if err != nil {
+			return dayResp{}, fmt.Errorf("could not load location from db: %w", err)
+		}
+		t, err := time.ParseInLocation("2006-01-02 15:04:05", *day.WakeUpTime, loc)
+		if err != nil {
+			return dayResp{}, fmt.Errorf("unexpected db time format \"%s\": %w", *day.WakeUpTime, err)
+		}
+		wakeUpTime = &wakeUpResp{
+			Time: fmt.Sprintf("%s[%s]", t.Format(time.RFC3339), *day.WakeUpTimeTz),
+		}
+	}
 	return dayResp{
 		Id:         day.ExternalID,
 		Date:       day.Date,
 		CoffeeTime: day.CoffeeTime,
 		DinnerTime: day.DinnerTime,
 		DinnerSize: day.DinnerSize,
-		WakeUpTime: day.WakeUpTime,
+		WakeUpTime: wakeUpTime,
 		Poops: func() []poopResp {
 			poops := []poopResp{}
 			for _, poop := range day.Poops {
@@ -98,7 +117,7 @@ func dayDbToResp(day dayDb) dayResp {
 			}
 			return poops
 		}(),
-	}
+	}, nil
 }
 
 func getUpdatedClients(
@@ -128,24 +147,24 @@ func pull(
 	if err != nil {
 		return pullResponse{}, err
 	}
-	pullResp, err := runInTransaction(ctx, db, func(tx *sqlx.Tx) (pullResponse, error) {
+	pullResp, err := runInTransaction(ctx, db, func(tx *sqlx.Tx) (pullResponse, bool, error) {
 		var previousVersion int64 = 0
 		if req.Cookie != nil {
 			previousVersion = *req.Cookie
 		}
 		clientGroup, err := getClientGroup(ctx, tx, req.ClientGroupId)
 		if err != nil {
-			return pullResponse{}, err
+			return pullResponse{}, false, err
 		}
 		if clientGroup != nil {
 			if clientGroup.UserId != user.Id {
-				return pullResponse{}, UserError{
+				return pullResponse{}, false, UserError{
 					Message:         "client group not found",
 					internalMessage: "client group not owned by user",
 				}
 			}
 			if clientGroup.SpaceExternalId != space.ExternalId {
-				return pullResponse{}, UserError{
+				return pullResponse{}, false, UserError{
 					Message:         "client group not found",
 					internalMessage: "client group not in space",
 				}
@@ -155,7 +174,7 @@ func pull(
 		// request.params.spaceID AND lastModifiedVersion > prevVersion
 		days, err := getDays(ctx, tx, space.Id, previousVersion)
 		if err != nil {
-			return pullResponse{}, err
+			return pullResponse{}, false, err
 		}
 
 		var clientGroupId int64 = -1
@@ -165,7 +184,7 @@ func pull(
 		// 8. Read all ReplicacheClient records for the requested client group that have lastModifiedVersion > prevVersion.
 		clients, err := getUpdatedClients(ctx, tx, clientGroupId, previousVersion)
 		if err != nil {
-			return pullResponse{}, err
+			return pullResponse{}, false, err
 		}
 		lastMutationIdChanges := map[string]int32{}
 		for _, client := range clients {
@@ -173,10 +192,14 @@ func pull(
 		}
 		patches := []interface{}{}
 		for _, d := range days {
+			putResp, err := dayDbToResp(d)
+			if err != nil {
+				return pullResponse{}, false, err
+			}
 			patches = append(patches, patchOperationPut{
 				Op:    "put",
 				Key:   fmt.Sprintf("day/%s", d.ExternalID),
-				Value: dayDbToResp(d),
+				Value: putResp,
 			})
 		}
 
@@ -184,7 +207,7 @@ func pull(
 			Cookie:                space.Version,
 			LastMutationIdChanges: lastMutationIdChanges,
 			Patch:                 patches,
-		}, nil
+		}, false, nil
 
 	})
 	if err != nil {

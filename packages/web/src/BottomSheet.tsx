@@ -1,9 +1,10 @@
 import {
+  convert,
+  DateTimeFormatter,
   LocalDate,
   LocalTime,
-  ZoneId,
   ZonedDateTime,
-  convert,
+  ZoneId,
 } from '@js-joda/core';
 import clsx from 'clsx';
 import { Button, Card, Flex } from '@radix-ui/themes';
@@ -71,12 +72,12 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
             selectedDate,
             LocalTime.now(),
             ZoneId.systemDefault(),
-          ).toString() as IsoDateTime)
+          ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime)
         : (ZonedDateTime.of(
             selectedDate,
             LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
             ZoneId.systemDefault(),
-          ).toString() as IsoDateTime);
+          ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime);
     dayJotai.ifJust((d) => {
       setDayJotai({
         ...d,
@@ -85,7 +86,7 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
         },
       });
       const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
-      rep?.mutate.setWakeUp({
+      rep?.mutate.setDay({
         date: selectedDate.toString(),
         id: repId,
         wakeUp: {
