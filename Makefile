@@ -13,3 +13,4 @@ generate-db-bindings:
 .PHONY: lint
 lint:
 	golangci-lint run ./server/...
+	(cd packages/web && bun run lint)

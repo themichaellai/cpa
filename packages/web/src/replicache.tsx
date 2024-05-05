@@ -9,24 +9,11 @@ import { Replicache, WriteTransaction } from 'replicache';
 
 import { useUserToken } from './store/user';
 import { FrontendDay } from '../convex/days';
+import { IsoDate } from './time';
 
 const REPLICACHE_LICENSE = 'lbf96f9411a604ca4814d875587aa4826';
 
-interface AddDayMutation {
-  date: string;
-  id: string;
-}
-
 const mutators = {
-  async addDay(tx: WriteTransaction, { date, id }: AddDayMutation) {
-    await tx.set(`day/${id}`, {
-      coffee: null,
-      dinner: null,
-      wakeUp: null,
-      poops: [],
-      date,
-    });
-  },
   async setDay(
     tx: WriteTransaction,
     {
@@ -68,6 +55,32 @@ const mutators = {
         dinner,
       });
     }
+  },
+  async addPoop(
+    tx: WriteTransaction,
+    { id, date, time }: { id: string; date: IsoDate; time: string },
+  ) {
+    const day = (await tx.get(`day/${id}`)) as FrontendDay | null;
+    if (day != null && typeof day !== 'object') {
+      return;
+    }
+    if (day != null && day.date !== date) {
+      return;
+    }
+    await tx.set(`day/${id}`, {
+      id,
+      date,
+      coffee: day?.coffee ?? null,
+      dinner: day?.dinner ?? null,
+      wakeUp: day?.wakeUp ?? null,
+      poops: [
+        ...(day?.poops ?? []),
+        {
+          time,
+          run: null,
+        },
+      ],
+    } satisfies FrontendDay);
   },
 };
 

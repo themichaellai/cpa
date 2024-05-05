@@ -1,101 +1,129 @@
 import { useCallback, useMemo } from 'react';
-import { LocalDate, LocalTime, ZoneId, ZonedDateTime } from '@js-joda/core';
+import { LocalDate } from '@js-joda/core';
 import { Button, Card, ContextMenu, Flex, Switch } from '@radix-ui/themes';
 import clsx from 'clsx';
+import { useSubscribe } from 'replicache-react';
+import { Maybe, Nothing } from 'purify-ts/Maybe';
 
-import { useDay, Day, Poop } from './store';
-import { IsoDateTime, now } from './time';
+import { FrontendDay } from '../convex/days';
+import { useDay } from './store';
+import { IsoDate, IsoDateTime, now } from './time';
+import { useReplicache } from './replicache';
 import TimePicker from './components/TimePicker';
 
-const setPoopAtIdx = (poops: Poop[], idx: number, newPoop: Poop): Poop[] => [
-  ...poops.slice(0, idx),
-  newPoop,
-  ...poops.slice(idx + 1),
-];
+//const setPoopAtIdx = (poops: Poop[], idx: number, newPoop: Poop): Poop[] => [
+//  ...poops.slice(0, idx),
+//  newPoop,
+//  ...poops.slice(idx + 1),
+//];
 
 const Pooper: React.FC<{
   date: LocalDate;
 }> = ({ date }) => {
-  const [day, setDay] = useDay(date);
+  const rep = useReplicache();
+  const dayRep = useSubscribe(
+    rep,
+    async (tx): Promise<Maybe<FrontendDay>> => {
+      const allDays = (await tx
+        .scan({
+          prefix: `day/`,
+        })
+        .toArray()) as unknown as Array<FrontendDay>;
+      const day = allDays.find((d) => d.date === date.toString());
+      return Maybe.fromNullable(day);
+      //return Maybe.fromNullable(day)
+      //  .toEither(null)
+      //  .chain((day) => {
+      //    if (day.wakeUp == null) {
+      //      return Right(day);
+      //    }
+      //    return parseDateTime(day.wakeUp.time).map((t) => ({
+      //      ...day,
+      //      wakeUp: {
+      //        ...day.wakeUp,
+      //        time: t,
+      //      },
+      //    }));
+      //  })
+      //  .toMaybe();
+    },
+    {
+      default: Nothing,
+      dependencies: [date],
+    },
+  );
+  const [day, _setDay] = useDay(date);
 
-  const poops = useMemo(() => day.map((d) => d.poops).orDefault([]), [day]);
+  const poops = useMemo(
+    () => dayRep.map((d) => d.poops).orDefault([]),
+    [dayRep],
+  );
   const addPoop = useCallback(() => {
-    day
-      .map((d): Day => {
-        return {
-          ...d,
-          poops: [
-            ...d.poops,
-            {
-              time: now(),
-              run: null,
-            },
-          ],
-        };
-      })
-      .ifJust((d) => {
-        setDay(d);
-      });
-  }, [day, setDay]);
+    const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
+    rep?.mutate.addPoop({
+      id: repId,
+      date: date.toString() as IsoDate,
+      time: now(),
+    });
+  }, [dayRep, date, rep?.mutate]);
 
   const poopEls = useMemo(
     () =>
       poops.map((poop, idx) => {
-        const toggleRun = (val: boolean) => {
-          day
-            .map((d): Day => {
-              const newPoop: Poop = {
-                ...poop,
-                run: !val
-                  ? null
-                  : {
-                      timeIntoRunMinutes: 0,
-                    },
-              };
-              return {
-                ...d,
-                poops: setPoopAtIdx(d.poops, idx, newPoop),
-              };
-            })
-            .ifJust((d) => {
-              setDay(d);
-            });
+        const toggleRun = (_val: boolean) => {
+          //day
+          //  .map((d): Day => {
+          //    const newPoop: Poop = {
+          //      ...poop,
+          //      run: !val
+          //        ? null
+          //        : {
+          //            timeIntoRunMinutes: 0,
+          //          },
+          //    };
+          //    return {
+          //      ...d,
+          //      poops: setPoopAtIdx(d.poops, idx, newPoop),
+          //    };
+          //  })
+          //  .ifJust((d) => {
+          //    setDay(d);
+          //  });
         };
 
-        const changeTime = (timeOffsetMillis: number) => {
-          day
-            .map((d) => {
-              const newTime: IsoDateTime = ZonedDateTime.of(
-                date,
-                LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
-                ZoneId.systemDefault(),
-              ).toString() as IsoDateTime;
-              return {
-                ...d,
-                poops: setPoopAtIdx(d.poops, idx, {
-                  ...poop,
-                  time: newTime,
-                }),
-              };
-            })
-            .ifJust((d) => {
-              setDay(d);
-            });
+        const changeTime = (_timeOffsetMillis: number) => {
+          //day
+          //  .map((d) => {
+          //    const newTime: IsoDateTime = ZonedDateTime.of(
+          //      date,
+          //      LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
+          //      ZoneId.systemDefault(),
+          //    ).toString() as IsoDateTime;
+          //    return {
+          //      ...d,
+          //      poops: setPoopAtIdx(d.poops, idx, {
+          //        ...poop,
+          //        time: newTime,
+          //      }),
+          //    };
+          //  })
+          //  .ifJust((d) => {
+          //    setDay(d);
+          //  });
         };
 
         const deleteSelf = () => {
-          day
-            .map((d) => {
-              return {
-                ...d,
-                poops: [...d.poops.slice(0, idx), ...d.poops.slice(idx + 1)],
-              };
-            })
-            .ifJust((d) => {
-              setDay(d);
-            });
+          //day
+          //  .map((d) => {
+          //    return {
+          //      ...d,
+          //      poops: [...d.poops.slice(0, idx), ...d.poops.slice(idx + 1)],
+          //    };
+          //  })
+          //  .ifJust((d) => {
+          //    setDay(d);
+          //  });
         };
-
         return (
           <ContextMenu.Root key={`${day}-${idx}`}>
             <ContextMenu.Trigger>
@@ -108,7 +136,10 @@ const Pooper: React.FC<{
                 <Flex align="center" gap="1" className="mb-4 select-none">
                   <div className="w-1/4">Time</div>
                   <div className="flex-1 text-right">
-                    <TimePicker time={poop.time} onChange={changeTime} />
+                    <TimePicker
+                      time={poop.time as IsoDateTime}
+                      onChange={changeTime}
+                    />
                   </div>
                 </Flex>
                 <Flex align="center" className="select-none" gap="1">
@@ -130,7 +161,7 @@ const Pooper: React.FC<{
           </ContextMenu.Root>
         );
       }),
-    [poops, setDay, day, date],
+    [poops, day],
   );
 
   return (

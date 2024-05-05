@@ -54,7 +54,7 @@ func getDays(
 	spaceId int64,
 	previousVersion int64,
 ) ([]dayDb, error) {
-	stmt := sqlite.SELECT(Days.AllColumns).FROM(Days).
+	stmt := sqlite.SELECT(Days.AllColumns, Poops.AllColumns).FROM(Days.INNER_JOIN(Poops, Poops.DayID.EQ(Days.ID))).
 		WHERE(Days.DeletedAt.IS_NULL().
 			AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))).
 			AND(Days.LastModifiedVersion.GT(sqlite.Int64(previousVersion))),
@@ -67,8 +67,15 @@ func getDays(
 }
 
 type poopResp struct {
-	Time            string `json:"time"`
-	TimeIntoDayMins *int32 `json:"time_into_day_mins"`
+	Time string    `json:"time"`
+	Run  *struct{} `json:"run"`
+}
+
+func newPoopResp(t time.Time, loc *time.Location) poopResp {
+	return poopResp{
+		Time: fmt.Sprintf("%s[%s]", t.Format(time.RFC3339), loc.String()),
+		Run:  nil,
+	}
 }
 
 type wakeUpResp struct {
@@ -99,8 +106,20 @@ func dayDbToResp(day dayDb) (dayResp, error) {
 			return dayResp{}, fmt.Errorf("unexpected db time format \"%s\": %w", *day.WakeUpTime, err)
 		}
 		wakeUpTime = &wakeUpResp{
-			Time: fmt.Sprintf("%s[%s]", t.Format(time.RFC3339), *day.WakeUpTimeTz),
+			Time: fmt.Sprintf("%s[%s]", t.Format(time.RFC3339), loc.String()),
 		}
+	}
+	poops := []poopResp{}
+	for _, poop := range day.Poops {
+		poopTimeTz, err := time.LoadLocation(poop.TimeTz)
+		if err != nil {
+			return dayResp{}, fmt.Errorf("could not load location from db: %w", err)
+		}
+		poopTime, err := time.ParseInLocation("2006-01-02 15:04:05", poop.Time, poopTimeTz)
+		if err != nil {
+			return dayResp{}, fmt.Errorf("unexpected db time format \"%s\": %w", poop.Time, err)
+		}
+		poops = append(poops, newPoopResp(poopTime, poopTimeTz))
 	}
 	return dayResp{
 		Id:         day.ExternalID,
@@ -110,16 +129,7 @@ func dayDbToResp(day dayDb) (dayResp, error) {
 			Size: day.DinnerSize,
 		},
 		WakeUpTime: wakeUpTime,
-		Poops: func() []poopResp {
-			poops := []poopResp{}
-			for _, poop := range day.Poops {
-				poops = append(poops, poopResp{
-					Time:            poop.Time,
-					TimeIntoDayMins: poop.TimeIntoDayMinutes,
-				})
-			}
-			return poops
-		}(),
+		Poops:      poops,
 	}, nil
 }
 

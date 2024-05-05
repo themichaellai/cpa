@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -20,7 +21,7 @@ type mutationAddDay struct {
 }
 
 type mutationSetDay struct {
-	Date         string
+	Date         db.ParsedDate
 	Id           string
 	WakeUpTime   *time.Time
 	WakeUpTimeTz *time.Location
@@ -57,7 +58,7 @@ func parseMutationSetDay(bs []byte) (mutationSetDay, error) {
 		} `json:"dinner"`
 	}
 	var args mutationSetDayRaw
-	if err := json.Unmarshal(bs, &args); err != nil {
+	if err := newJsonDecoder(bs).Decode(&args); err != nil {
 		msg := "could not unmarshal set wake up args"
 		log.WithFields(logrus.Fields{
 			"args": string(bs),
@@ -86,12 +87,59 @@ func parseMutationSetDay(bs []byte) (mutationSetDay, error) {
 		}
 		dinnerSize = &dinnerSizeParsed
 	}
+	date, err := db.ParseDateFromString(args.Date)
+	if err != nil {
+		return mutationSetDay{}, err
+	}
 	return mutationSetDay{
-		Date:         args.Date,
+		Date:         date,
 		Id:           args.Id,
 		WakeUpTime:   wakeUpTime,
 		WakeUpTimeTz: wakeUpTimeTz,
 		DinnerSize:   dinnerSize,
+	}, nil
+}
+
+type mutationAddPoop struct {
+	DayId  string
+	Date   db.ParsedDate
+	Time   time.Time
+	TimeTz *time.Location
+}
+
+func newJsonDecoder(bs []byte) *json.Decoder {
+	decoder := json.NewDecoder(bytes.NewReader(bs))
+	decoder.DisallowUnknownFields()
+	return decoder
+}
+
+func parseMutationAddPoop(bs []byte) (mutationAddPoop, error) {
+	type mutationAddPoopRaw struct {
+		DayId string `json:"id"`
+		Date  string `json:"date"`
+		Time  string `json:"time"`
+	}
+	var args mutationAddPoopRaw
+	if err := newJsonDecoder(bs).Decode(&args); err != nil {
+		msg := "could not unmarshal add poop args"
+		log.WithFields(logrus.Fields{
+			"args": string(bs),
+		}).Error(msg)
+		return mutationAddPoop{}, fmt.Errorf("%s: %w", msg, err)
+	}
+	t, tz, err := parseJavaTimeString(args.Time)
+	if err != nil {
+		return mutationAddPoop{}, fmt.Errorf("could not parse time: %w", err)
+	}
+	date, err := db.ParseDateFromString(args.Date)
+	if err != nil {
+		return mutationAddPoop{}, err
+	}
+	return mutationAddPoop{
+		DayId:  args.DayId,
+		Date:   date,
+		Time:   t,
+		TimeTz: tz,
 	}, nil
 }
 
@@ -165,8 +213,6 @@ func runInTransaction[T any](
 	}
 	return result, nil
 }
-
-var dateRegexp = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
 
 func getOrCreateSpace(
 	ctx context.Context,
@@ -340,8 +386,8 @@ func push(
 						}).Error(msg)
 						return struct{}{}, false, fmt.Errorf("%s: %w", msg, err)
 					}
-					if !dateRegexp.MatchString(args.Date) {
-						return struct{}{}, false, fmt.Errorf("invalid date format: \"%s\"", args.Date)
+					if _, err := db.ParseDateFromString(args.Date); err != nil {
+						return struct{}{}, false, err
 					}
 					log.WithFields(logrus.Fields{
 						"space_id": space.Id,
@@ -397,7 +443,7 @@ func push(
 					}
 					log.WithFields(logrus.Fields{
 						"space_id": space.Id,
-						"args":     mutationSetWakeUp,
+						"args":     fmt.Sprintf("%#v", mutationSetWakeUp),
 					}).Info("running set day mutation")
 					if err := db.SetDay(
 						ctx,
@@ -411,6 +457,30 @@ func push(
 						mutationSetWakeUp.DinnerSize,
 					); err != nil {
 						return struct{}{}, false, fmt.Errorf("could not set wake up time: %w", err)
+					}
+				}
+			case "addPoop":
+				{
+					mutationAddPoop, err := parseMutationAddPoop(mutation.Args)
+					if err != nil {
+						return struct{}{}, false, err
+					}
+					log.WithFields(logrus.Fields{
+						"space_id": space.Id,
+						"args":     fmt.Sprintf("%#v", mutationAddPoop),
+					}).Info("running add poop mutation")
+					if err := db.AddPoop(
+						ctx,
+						log,
+						tx,
+						space.Id,
+						nextVersion,
+						mutationAddPoop.DayId,
+						mutationAddPoop.Date,
+						mutationAddPoop.Time,
+						mutationAddPoop.TimeTz,
+					); err != nil {
+						return struct{}{}, false, fmt.Errorf("could not add poop: %w", err)
 					}
 				}
 			default:
