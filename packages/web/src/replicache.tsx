@@ -5,13 +5,36 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { Replicache, WriteTransaction } from 'replicache';
+import { ReadonlyJSONObject, Replicache, WriteTransaction } from 'replicache';
 
 import { useUserToken } from './store/user';
-import { FrontendDay } from '../convex/days';
 import { IsoDate } from './time';
 
 const REPLICACHE_LICENSE = 'lbf96f9411a604ca4814d875587aa4826';
+
+interface Poop {
+  readonly id: string;
+  readonly time: string;
+  readonly run: {
+    readonly timeIntoRunMinutes: number;
+  } | null;
+}
+
+interface FrontendDay {
+  readonly id: string;
+  readonly coffee: {
+    readonly time: string | null;
+  } | null;
+  readonly date: string;
+  readonly dinner: {
+    readonly time: string | null;
+    readonly size: 'regular' | 'big' | null;
+  } | null;
+  readonly wakeUp: {
+    readonly time: string;
+  } | null;
+  readonly poops: ReadonlyArray<Poop>;
+}
 
 const mutators = {
   async setDay(
@@ -58,7 +81,12 @@ const mutators = {
   },
   async addPoop(
     tx: WriteTransaction,
-    { id, date, time }: { id: string; date: IsoDate; time: string },
+    {
+      id,
+      date,
+      poopId,
+      time,
+    }: { id: string; date: IsoDate; poopId: string; time: string },
   ) {
     const day = (await tx.get(`day/${id}`)) as FrontendDay | null;
     if (day != null && typeof day !== 'object') {
@@ -67,20 +95,23 @@ const mutators = {
     if (day != null && day.date !== date) {
       return;
     }
-    await tx.set(`day/${id}`, {
+    const newPoops: ReadonlyArray<Poop> = [
+      ...(day?.poops ?? []),
+      {
+        id: poopId,
+        time,
+        run: null,
+      },
+    ];
+    const newDay = {
       id,
       date,
       coffee: day?.coffee ?? null,
       dinner: day?.dinner ?? null,
       wakeUp: day?.wakeUp ?? null,
-      poops: [
-        ...(day?.poops ?? []),
-        {
-          time,
-          run: null,
-        },
-      ],
-    } satisfies FrontendDay);
+      poops: newPoops,
+    } as const satisfies FrontendDay;
+    await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
   },
 };
 
@@ -105,7 +136,7 @@ const newRep = async (userKey: string) => {
     pullURL: 'http://localhost:8080/pull',
     auth: `Bearer ${userKey}`,
     mutators,
-    //pullInterval: 5000,
+    pullInterval: 5000,
   });
 };
 

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-jet/jet/v2/sqlite"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	. "github.com/themichaellai/cpa/gen/table"
@@ -141,6 +140,7 @@ func AddPoop(
 	dayNewVersion int64,
 	dayExternalId string,
 	date ParsedDate,
+	poopExternalId string,
 	time time.Time,
 	timeTz *time.Location,
 ) error {
@@ -154,7 +154,7 @@ func AddPoop(
 		Poops.Time,
 		Poops.TimeTz,
 	).VALUES(
-		sqlite.String(uuid.New().String()),
+		sqlite.String(poopExternalId),
 		sqlite.Int32(dayId),
 		timeToSqliteTime(&time),
 		sqlite.String(timeTz.String()),

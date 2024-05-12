@@ -60,9 +60,11 @@ const Pooper: React.FC<{
   );
   const addPoop = useCallback(() => {
     const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
+    const poopId = crypto.randomUUID();
     rep?.mutate.addPoop({
       id: repId,
       date: date.toString() as IsoDate,
+      poopId,
       time: now(),
     });
   }, [dayRep, date, rep?.mutate]);

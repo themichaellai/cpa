@@ -9,11 +9,18 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/themichaellai/cpa/server/db"
 )
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
 
 type mutationAddDay struct {
 	Date string `json:"date"`
@@ -101,6 +108,7 @@ func parseMutationSetDay(bs []byte) (mutationSetDay, error) {
 }
 
 type mutationAddPoop struct {
+	PoopId string
 	DayId  string
 	Date   db.ParsedDate
 	Time   time.Time
@@ -115,9 +123,10 @@ func newJsonDecoder(bs []byte) *json.Decoder {
 
 func parseMutationAddPoop(bs []byte) (mutationAddPoop, error) {
 	type mutationAddPoopRaw struct {
-		DayId string `json:"id"`
-		Date  string `json:"date"`
-		Time  string `json:"time"`
+		PoopId string `json:"poopId" validate:"required"`
+		DayId  string `json:"id" validate:"required"`
+		Date   string `json:"date" validate:"required"`
+		Time   string `json:"time" validate:"required"`
 	}
 	var args mutationAddPoopRaw
 	if err := newJsonDecoder(bs).Decode(&args); err != nil {
@@ -126,6 +135,9 @@ func parseMutationAddPoop(bs []byte) (mutationAddPoop, error) {
 			"args": string(bs),
 		}).Error(msg)
 		return mutationAddPoop{}, fmt.Errorf("%s: %w", msg, err)
+	}
+	if err := validate.Struct(args); err != nil {
+		return mutationAddPoop{}, fmt.Errorf("invalid add poop args: %w", err)
 	}
 	t, tz, err := parseJavaTimeString(args.Time)
 	if err != nil {
@@ -137,6 +149,7 @@ func parseMutationAddPoop(bs []byte) (mutationAddPoop, error) {
 	}
 	return mutationAddPoop{
 		DayId:  args.DayId,
+		PoopId: args.PoopId,
 		Date:   date,
 		Time:   t,
 		TimeTz: tz,
@@ -477,6 +490,7 @@ func push(
 						nextVersion,
 						mutationAddPoop.DayId,
 						mutationAddPoop.Date,
+						mutationAddPoop.PoopId,
 						mutationAddPoop.Time,
 						mutationAddPoop.TimeTz,
 					); err != nil {

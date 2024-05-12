@@ -67,12 +67,14 @@ func getDays(
 }
 
 type poopResp struct {
+	Id   string    `json:"id"`
 	Time string    `json:"time"`
 	Run  *struct{} `json:"run"`
 }
 
-func newPoopResp(t time.Time, loc *time.Location) poopResp {
+func newPoopResp(externalId string, t time.Time, loc *time.Location) poopResp {
 	return poopResp{
+		Id:   externalId,
 		Time: fmt.Sprintf("%s[%s]", t.Format(time.RFC3339), loc.String()),
 		Run:  nil,
 	}
@@ -119,7 +121,7 @@ func dayDbToResp(day dayDb) (dayResp, error) {
 		if err != nil {
 			return dayResp{}, fmt.Errorf("unexpected db time format \"%s\": %w", poop.Time, err)
 		}
-		poops = append(poops, newPoopResp(poopTime, poopTimeTz))
+		poops = append(poops, newPoopResp(poop.ExternalID, poopTime, poopTimeTz))
 	}
 	return dayResp{
 		Id:         day.ExternalID,
