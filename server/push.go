@@ -1,160 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"regexp"
-	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 	"github.com/themichaellai/cpa/server/db"
+	"github.com/themichaellai/cpa/server/mutations"
 )
-
-var validate *validator.Validate
-
-func init() {
-	validate = validator.New()
-}
-
-type mutationAddDay struct {
-	Date string `json:"date"`
-	Id   string `json:"id"`
-}
-
-type mutationSetDay struct {
-	Date         db.ParsedDate
-	Id           string
-	WakeUpTime   *time.Time
-	WakeUpTimeTz *time.Location
-	DinnerSize   *db.DinnerSize
-}
-
-var timeZoneRegexp = regexp.MustCompile(`^([^[]+)\[(.+)\]$`)
-
-func parseJavaTimeString(s string) (t time.Time, timezone *time.Location, _ error) {
-	timeStringMatch := timeZoneRegexp.FindStringSubmatch(s)
-	if timeStringMatch == nil {
-		return time.Time{}, nil, fmt.Errorf("could not parse time")
-	}
-	t, err := time.Parse(time.RFC3339, timeStringMatch[1])
-	if err != nil {
-		return time.Time{}, nil, fmt.Errorf("invalid time format: %w", err)
-	}
-	loc, err := time.LoadLocation(timeStringMatch[2])
-	if err != nil {
-		return time.Time{}, nil, fmt.Errorf("invalid timezone: %w", err)
-	}
-	return t, loc, nil
-}
-
-func parseMutationSetDay(bs []byte) (mutationSetDay, error) {
-	type mutationSetDayRaw struct {
-		Date   string `json:"date"`
-		Id     string `json:"id"`
-		WakeUp *struct {
-			Time *string `json:"time"`
-		} `json:"wakeUp"`
-		Dinner *struct {
-			Size *string `json:"size"`
-		} `json:"dinner"`
-	}
-	var args mutationSetDayRaw
-	if err := newJsonDecoder(bs).Decode(&args); err != nil {
-		msg := "could not unmarshal set wake up args"
-		log.WithFields(logrus.Fields{
-			"args": string(bs),
-		}).Error(msg)
-		return mutationSetDay{}, fmt.Errorf("%s: %w", msg, err)
-	}
-	var wakeUpTime *time.Time
-	var wakeUpTimeTz *time.Location
-	if args.WakeUp != nil && args.WakeUp.Time != nil {
-		t, tz, err := parseJavaTimeString(*args.WakeUp.Time)
-		if err != nil {
-			return mutationSetDay{}, fmt.Errorf("could not parse wake up: %w", err)
-		}
-		log.WithFields(logrus.Fields{
-			"time": t.Format(time.RFC3339),
-			"tz":   tz.String(),
-		}).Info("parsed wake up time")
-		wakeUpTime = &t
-		wakeUpTimeTz = tz
-	}
-	var dinnerSize *db.DinnerSize
-	if args.Dinner != nil && args.Dinner.Size != nil {
-		dinnerSizeParsed, dinnerSizeOk := db.ParseToDinnerSize(*args.Dinner.Size)
-		if !dinnerSizeOk {
-			return mutationSetDay{}, fmt.Errorf("invalid dinner size: %s", *args.Dinner.Size)
-		}
-		dinnerSize = &dinnerSizeParsed
-	}
-	date, err := db.ParseDateFromString(args.Date)
-	if err != nil {
-		return mutationSetDay{}, err
-	}
-	return mutationSetDay{
-		Date:         date,
-		Id:           args.Id,
-		WakeUpTime:   wakeUpTime,
-		WakeUpTimeTz: wakeUpTimeTz,
-		DinnerSize:   dinnerSize,
-	}, nil
-}
-
-type mutationAddPoop struct {
-	PoopId string
-	DayId  string
-	Date   db.ParsedDate
-	Time   time.Time
-	TimeTz *time.Location
-}
-
-func newJsonDecoder(bs []byte) *json.Decoder {
-	decoder := json.NewDecoder(bytes.NewReader(bs))
-	decoder.DisallowUnknownFields()
-	return decoder
-}
-
-func parseMutationAddPoop(bs []byte) (mutationAddPoop, error) {
-	type mutationAddPoopRaw struct {
-		PoopId string `json:"poopId" validate:"required"`
-		DayId  string `json:"id" validate:"required"`
-		Date   string `json:"date" validate:"required"`
-		Time   string `json:"time" validate:"required"`
-	}
-	var args mutationAddPoopRaw
-	if err := newJsonDecoder(bs).Decode(&args); err != nil {
-		msg := "could not unmarshal add poop args"
-		log.WithFields(logrus.Fields{
-			"args": string(bs),
-		}).Error(msg)
-		return mutationAddPoop{}, fmt.Errorf("%s: %w", msg, err)
-	}
-	if err := validate.Struct(args); err != nil {
-		return mutationAddPoop{}, fmt.Errorf("invalid add poop args: %w", err)
-	}
-	t, tz, err := parseJavaTimeString(args.Time)
-	if err != nil {
-		return mutationAddPoop{}, fmt.Errorf("could not parse time: %w", err)
-	}
-	date, err := db.ParseDateFromString(args.Date)
-	if err != nil {
-		return mutationAddPoop{}, err
-	}
-	return mutationAddPoop{
-		DayId:  args.DayId,
-		PoopId: args.PoopId,
-		Date:   date,
-		Time:   t,
-		TimeTz: tz,
-	}, nil
-}
 
 type pushRequest struct {
 	ClientGroupId string     `json:"clientGroupID"`
@@ -391,7 +248,7 @@ func push(
 			switch mutation.Name {
 			case "addDay":
 				{
-					var args mutationAddDay
+					var args mutations.AddDay
 					if err := json.Unmarshal(mutation.Args, &args); err != nil {
 						msg := "could not unmarshal add day args"
 						log.WithFields(logrus.Fields{
@@ -450,7 +307,7 @@ func push(
 				}
 			case "setDay":
 				{
-					mutationSetWakeUp, err := parseMutationSetDay(mutation.Args)
+					mutationSetWakeUp, err := mutations.ParseSetDay(log, mutation.Args)
 					if err != nil {
 						return struct{}{}, false, err
 					}
@@ -474,7 +331,7 @@ func push(
 				}
 			case "addPoop":
 				{
-					mutationAddPoop, err := parseMutationAddPoop(mutation.Args)
+					mutationAddPoop, err := mutations.ParseAddPoop(log, mutation.Args)
 					if err != nil {
 						return struct{}{}, false, err
 					}
