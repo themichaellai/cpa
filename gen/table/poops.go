@@ -22,7 +22,7 @@ type poopsTable struct {
 	DayID              sqlite.ColumnInteger
 	Time               sqlite.ColumnString
 	TimeTz             sqlite.ColumnString
-	TimeIntoDayMinutes sqlite.ColumnInteger
+	TimeIntoRunMinutes sqlite.ColumnInteger
 	DeletedAt          sqlite.ColumnString
 
 	AllColumns     sqlite.ColumnList
@@ -69,10 +69,10 @@ func newPoopsTableImpl(schemaName, tableName, alias string) poopsTable {
 		DayIDColumn              = sqlite.IntegerColumn("day_id")
 		TimeColumn               = sqlite.StringColumn("time")
 		TimeTzColumn             = sqlite.StringColumn("time_tz")
-		TimeIntoDayMinutesColumn = sqlite.IntegerColumn("time_into_day_minutes")
+		TimeIntoRunMinutesColumn = sqlite.IntegerColumn("time_into_run_minutes")
 		DeletedAtColumn          = sqlite.StringColumn("deleted_at")
-		allColumns               = sqlite.ColumnList{IDColumn, ExternalIDColumn, DayIDColumn, TimeColumn, TimeTzColumn, TimeIntoDayMinutesColumn, DeletedAtColumn}
-		mutableColumns           = sqlite.ColumnList{ExternalIDColumn, DayIDColumn, TimeColumn, TimeTzColumn, TimeIntoDayMinutesColumn, DeletedAtColumn}
+		allColumns               = sqlite.ColumnList{IDColumn, ExternalIDColumn, DayIDColumn, TimeColumn, TimeTzColumn, TimeIntoRunMinutesColumn, DeletedAtColumn}
+		mutableColumns           = sqlite.ColumnList{ExternalIDColumn, DayIDColumn, TimeColumn, TimeTzColumn, TimeIntoRunMinutesColumn, DeletedAtColumn}
 	)
 
 	return poopsTable{
@@ -84,7 +84,7 @@ func newPoopsTableImpl(schemaName, tableName, alias string) poopsTable {
 		DayID:              DayIDColumn,
 		Time:               TimeColumn,
 		TimeTz:             TimeTzColumn,
-		TimeIntoDayMinutes: TimeIntoDayMinutesColumn,
+		TimeIntoRunMinutes: TimeIntoRunMinutesColumn,
 		DeletedAt:          DeletedAtColumn,
 
 		AllColumns:     allColumns,

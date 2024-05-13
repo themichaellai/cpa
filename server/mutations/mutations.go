@@ -151,3 +151,54 @@ func ParseAddPoop(log *logrus.Logger, bs []byte) (AddPoop, error) {
 		TimeTz: tz,
 	}, nil
 }
+
+type SetPoop struct {
+	PoopId string
+	DayId  string
+	Date   db.ParsedDate
+	Time   time.Time
+	TimeTz *time.Location
+	OnRun  bool
+}
+
+func ParseSetPoop(log *logrus.Logger, bs []byte) (SetPoop, error) {
+	type mutationSetPoopRaw struct {
+		PoopId string `json:"poopId" validate:"required"`
+		DayId  string `json:"id" validate:"required"`
+		Date   string `json:"date" validate:"required"`
+		Time   string `json:"time" validate:"required"`
+		OnRun  bool   `json:"onRun"`
+	}
+	var args mutationSetPoopRaw
+	if err := newJsonDecoder(bs).Decode(&args); err != nil {
+		msg := "could not unmarshal set poop args"
+		log.WithFields(logrus.Fields{
+			"args": string(bs),
+		}).Error(msg)
+		return SetPoop{}, fmt.Errorf("%s: %w", msg, err)
+	}
+
+	if err := validate.Struct(args); err != nil {
+		msg := "invalid set poop args"
+		log.WithFields(logrus.Fields{
+			"args": string(bs),
+		}).Error(msg)
+		return SetPoop{}, fmt.Errorf("%s: %w", msg, err)
+	}
+	t, tz, err := parseJavaTimeString(args.Time)
+	if err != nil {
+		return SetPoop{}, fmt.Errorf("could not parse time: %w", err)
+	}
+	date, err := db.ParseDateFromString(args.Date)
+	if err != nil {
+		return SetPoop{}, err
+	}
+	return SetPoop{
+		DayId:  args.DayId,
+		PoopId: args.PoopId,
+		Date:   date,
+		Time:   t,
+		TimeTz: tz,
+		OnRun:  args.OnRun,
+	}, nil
+}

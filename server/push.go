@@ -354,6 +354,32 @@ func push(
 						return struct{}{}, false, fmt.Errorf("could not add poop: %w", err)
 					}
 				}
+			case "setPoop":
+				{
+					mutation, err := mutations.ParseSetPoop(log, mutation.Args)
+					if err != nil {
+						return struct{}{}, false, err
+					}
+					log.WithFields(logrus.Fields{
+						"space_id": space.Id,
+						"args":     fmt.Sprintf("%#v", mutation),
+					}).Info("running set poop mutation")
+					if err := db.SetPoop(
+						ctx,
+						log,
+						tx,
+						space.Id,
+						nextVersion,
+						mutation.DayId,
+						mutation.Date,
+						mutation.PoopId,
+						mutation.Time,
+						mutation.TimeTz,
+						mutation.OnRun,
+					); err != nil {
+						return struct{}{}, false, fmt.Errorf("could not add poop: %w", err)
+					}
+				}
 			default:
 				return struct{}{}, false, fmt.Errorf("unknown mutation: \"%s\"", mutation.Name)
 			}

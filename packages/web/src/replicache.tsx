@@ -20,7 +20,7 @@ interface Poop {
   } | null;
 }
 
-interface FrontendDay {
+export interface FrontendDay {
   readonly id: string;
   readonly coffee: {
     readonly time: string | null;
@@ -103,6 +103,49 @@ const mutators = {
         run: null,
       },
     ];
+    const newDay = {
+      id,
+      date,
+      coffee: day?.coffee ?? null,
+      dinner: day?.dinner ?? null,
+      wakeUp: day?.wakeUp ?? null,
+      poops: newPoops,
+    } as const satisfies FrontendDay;
+    await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
+  },
+  async setPoop(
+    tx: WriteTransaction,
+    {
+      id,
+      date,
+      poopId,
+      time,
+      onRun,
+    }: {
+      id: string;
+      date: IsoDate;
+      poopId: string;
+      time: string;
+      onRun: boolean;
+    },
+  ) {
+    const day = (await tx.get(`day/${id}`)) as FrontendDay | null;
+    if (day == null) {
+      return;
+    }
+    if (typeof day !== 'object' || day.date !== date) {
+      return;
+    }
+    const poopIdx = day.poops.findIndex((p) => p.id === poopId);
+    if (poopIdx === -1) {
+      return;
+    }
+    const newPoops = [...day.poops];
+    newPoops.splice(poopIdx, 1, {
+      ...newPoops[poopIdx],
+      time,
+      run: onRun ? { timeIntoRunMinutes: 0 } : null,
+    });
     const newDay = {
       id,
       date,

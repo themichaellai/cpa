@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-jet/jet/v2/sqlite"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 	"github.com/themichaellai/cpa/gen/model"
 	. "github.com/themichaellai/cpa/gen/table"
 )
@@ -54,7 +55,7 @@ func getDays(
 	spaceId int64,
 	previousVersion int64,
 ) ([]dayDb, error) {
-	stmt := sqlite.SELECT(Days.AllColumns, Poops.AllColumns).FROM(Days.INNER_JOIN(Poops, Poops.DayID.EQ(Days.ID))).
+	stmt := sqlite.SELECT(Days.AllColumns, Poops.AllColumns).FROM(Days.LEFT_JOIN(Poops, Poops.DayID.EQ(Days.ID))).
 		WHERE(Days.DeletedAt.IS_NULL().
 			AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))).
 			AND(Days.LastModifiedVersion.GT(sqlite.Int64(previousVersion))),
@@ -66,17 +67,26 @@ func getDays(
 	return days, nil
 }
 
+type poopRunResp struct {
+	TimeIntoRunMins int64 `json:"timeIntoRunMinutes"`
+}
 type poopResp struct {
-	Id   string    `json:"id"`
-	Time string    `json:"time"`
-	Run  *struct{} `json:"run"`
+	Id   string       `json:"id"`
+	Time string       `json:"time"`
+	Run  *poopRunResp `json:"run"`
 }
 
-func newPoopResp(externalId string, t time.Time, loc *time.Location) poopResp {
+func newPoopResp(externalId string, t time.Time, loc *time.Location, timeIntoRunMinutes *int32) poopResp {
+	var run *poopRunResp
+	if timeIntoRunMinutes != nil {
+		run = &poopRunResp{
+			TimeIntoRunMins: int64(*timeIntoRunMinutes),
+		}
+	}
 	return poopResp{
 		Id:   externalId,
 		Time: fmt.Sprintf("%s[%s]", t.Format(time.RFC3339), loc.String()),
-		Run:  nil,
+		Run:  run,
 	}
 }
 
@@ -121,7 +131,7 @@ func dayDbToResp(day dayDb) (dayResp, error) {
 		if err != nil {
 			return dayResp{}, fmt.Errorf("unexpected db time format \"%s\": %w", poop.Time, err)
 		}
-		poops = append(poops, newPoopResp(poop.ExternalID, poopTime, poopTimeTz))
+		poops = append(poops, newPoopResp(poop.ExternalID, poopTime, poopTimeTz, poop.TimeIntoRunMinutes))
 	}
 	return dayResp{
 		Id:         day.ExternalID,
@@ -167,6 +177,10 @@ func pull(
 		if req.Cookie != nil {
 			previousVersion = *req.Cookie
 		}
+		log.WithFields(logrus.Fields{
+			"req":              fmt.Sprintf("%#v", req),
+			"previous_version": previousVersion,
+		}).Info("processing pull request")
 		clientGroup, err := getClientGroup(ctx, tx, req.ClientGroupId)
 		if err != nil {
 			return pullResponse{}, false, err

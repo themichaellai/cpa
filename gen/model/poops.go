@@ -13,6 +13,6 @@ type Poops struct {
 	DayID              int32
 	Time               string
 	TimeTz             string
-	TimeIntoDayMinutes *int32
+	TimeIntoRunMinutes *int32
 	DeletedAt          *string
 }

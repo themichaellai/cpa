@@ -1,21 +1,20 @@
 import { useCallback, useMemo } from 'react';
-import { LocalDate } from '@js-joda/core';
+import {
+  DateTimeFormatter,
+  LocalDate,
+  LocalTime,
+  ZoneId,
+  ZonedDateTime,
+} from '@js-joda/core';
 import { Button, Card, ContextMenu, Flex, Switch } from '@radix-ui/themes';
 import clsx from 'clsx';
 import { useSubscribe } from 'replicache-react';
 import { Maybe, Nothing } from 'purify-ts/Maybe';
 
-import { FrontendDay } from '../convex/days';
 import { useDay } from './store';
 import { IsoDate, IsoDateTime, now } from './time';
-import { useReplicache } from './replicache';
+import { useReplicache, FrontendDay } from './replicache';
 import TimePicker from './components/TimePicker';
-
-//const setPoopAtIdx = (poops: Poop[], idx: number, newPoop: Poop): Poop[] => [
-//  ...poops.slice(0, idx),
-//  newPoop,
-//  ...poops.slice(idx + 1),
-//];
 
 const Pooper: React.FC<{
   date: LocalDate;
@@ -31,21 +30,6 @@ const Pooper: React.FC<{
         .toArray()) as unknown as Array<FrontendDay>;
       const day = allDays.find((d) => d.date === date.toString());
       return Maybe.fromNullable(day);
-      //return Maybe.fromNullable(day)
-      //  .toEither(null)
-      //  .chain((day) => {
-      //    if (day.wakeUp == null) {
-      //      return Right(day);
-      //    }
-      //    return parseDateTime(day.wakeUp.time).map((t) => ({
-      //      ...day,
-      //      wakeUp: {
-      //        ...day.wakeUp,
-      //        time: t,
-      //      },
-      //    }));
-      //  })
-      //  .toMaybe();
     },
     {
       default: Nothing,
@@ -72,46 +56,33 @@ const Pooper: React.FC<{
   const poopEls = useMemo(
     () =>
       poops.map((poop, idx) => {
-        const toggleRun = (_val: boolean) => {
-          //day
-          //  .map((d): Day => {
-          //    const newPoop: Poop = {
-          //      ...poop,
-          //      run: !val
-          //        ? null
-          //        : {
-          //            timeIntoRunMinutes: 0,
-          //          },
-          //    };
-          //    return {
-          //      ...d,
-          //      poops: setPoopAtIdx(d.poops, idx, newPoop),
-          //    };
-          //  })
-          //  .ifJust((d) => {
-          //    setDay(d);
-          //  });
+        const toggleRun = (val: boolean) => {
+          dayRep.ifJust((d) => {
+            rep?.mutate.setPoop({
+              id: d.id,
+              date: d.date as IsoDate,
+              poopId: poop.id,
+              time: poop.time,
+              onRun: val,
+            });
+          });
         };
 
-        const changeTime = (_timeOffsetMillis: number) => {
-          //day
-          //  .map((d) => {
-          //    const newTime: IsoDateTime = ZonedDateTime.of(
-          //      date,
-          //      LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
-          //      ZoneId.systemDefault(),
-          //    ).toString() as IsoDateTime;
-          //    return {
-          //      ...d,
-          //      poops: setPoopAtIdx(d.poops, idx, {
-          //        ...poop,
-          //        time: newTime,
-          //      }),
-          //    };
-          //  })
-          //  .ifJust((d) => {
-          //    setDay(d);
-          //  });
+        const changeTime = (timeOffsetMillis: number) => {
+          dayRep.ifJust((d) => {
+            const newtime: IsoDateTime = ZonedDateTime.of(
+              date,
+              LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
+              ZoneId.systemDefault(),
+            ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime;
+            rep?.mutate.setPoop({
+              id: d.id,
+              date: d.date as IsoDate,
+              poopId: poop.id,
+              time: newtime,
+              onRun: poop.run != null,
+            });
+          });
         };
 
         const deleteSelf = () => {
@@ -163,7 +134,7 @@ const Pooper: React.FC<{
           </ContextMenu.Root>
         );
       }),
-    [poops, day],
+    [poops, day, dayRep, rep, date],
   );
 
   return (

@@ -190,3 +190,80 @@ func AddPoop(
 
 	return nil
 }
+
+func SetPoop(
+	ctx context.Context,
+	log *logrus.Logger,
+	tx *sqlx.Tx,
+	spaceId int64,
+	dayNewVersion int64,
+	dayExternalId string,
+	date ParsedDate,
+	poopExternalId string,
+	time time.Time,
+	timeTz *time.Location,
+	onRun bool,
+) error {
+	dayId, err := getOrCreateDay(ctx, tx, spaceId, date, dayExternalId)
+	if err != nil {
+		return err
+	}
+	timeIntoRunMins := sqlite.NULL
+	if onRun {
+		timeIntoRunMins = sqlite.Int64(0)
+	}
+	updatedPoopRes, err := Poops.UPDATE(
+		//Poops.ExternalID,
+		//Poops.DayID,
+		Poops.Time,
+		Poops.TimeTz,
+		Poops.TimeIntoRunMinutes,
+	).SET(
+		//sqlite.String(poopExternalId),
+		//sqlite.Int32(dayId),
+		timeToSqliteTime(&time),
+		sqlite.String(timeTz.String()),
+		timeIntoRunMins,
+	).WHERE(
+		Poops.ExternalID.EQ(sqlite.String(poopExternalId)).AND(
+			Poops.DayID.EQ(sqlite.Int32(dayId)),
+		)).ExecContext(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("could not update poop: %w", err)
+	}
+	poopRowsChanged, err := updatedPoopRes.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("could not check rows changed: %w", err)
+	}
+	if poopRowsChanged == 0 {
+		log.WithFields(logrus.Fields{
+			"day_id":           dayId,
+			"poop_external_id": poopExternalId,
+		}).Warn("no rows changed when updating poop")
+	}
+	// Update version on the day
+	res, err := Days.UPDATE(
+		Days.LastModifiedVersion,
+	).SET(
+		sqlite.Int64(dayNewVersion),
+	).WHERE(
+		Days.ID.EQ(sqlite.Int32(dayId)),
+	).ExecContext(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("could not update day version: %w", err)
+	}
+	rowsChanged, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("could not check rows changed: %w", err)
+	}
+	if rowsChanged == 0 {
+		err := fmt.Errorf("no rows changed when updating day")
+		log.WithFields(logrus.Fields{
+			"dayId":         dayId,
+			"dayNewVersion": dayNewVersion,
+		}).Error(err.Error())
+		return err
+	}
+
+	return nil
+}

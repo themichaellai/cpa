@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS poops (
 
   time TEXT NOT NULL,
   time_tz TEXT NOT NULL,
-  time_into_day_minutes INTEGER,
+  time_into_run_minutes INTEGER,
 
   deleted_at TEXT,
   FOREIGN KEY (day_id) REFERENCES days (id)
