@@ -38,6 +38,12 @@ type patchOperationPut struct {
 	Key   string      `json:"key"`
 	Value interface{} `json:"value"`
 }
+
+//	type patchOperationDel struct {
+//		Op  string `json:"op"`
+//		Key string `json:"key"`
+//	}
+
 type pullResponse struct {
 	Cookie                int64            `json:"cookie"`
 	LastMutationIdChanges map[string]int32 `json:"lastMutationIDChanges"`
@@ -55,7 +61,12 @@ func getDays(
 	spaceId int64,
 	previousVersion int64,
 ) ([]dayDb, error) {
-	stmt := sqlite.SELECT(Days.AllColumns, Poops.AllColumns).FROM(Days.LEFT_JOIN(Poops, Poops.DayID.EQ(Days.ID))).
+	// TODO: debug this, poop deleted at is not null
+	stmt := sqlite.SELECT(Days.AllColumns, Poops.AllColumns).FROM(
+		Days.LEFT_JOIN(
+			Poops,
+			Poops.DayID.EQ(Days.ID).AND(Poops.DeletedAt.IS_NULL()),
+		)).
 		WHERE(Days.DeletedAt.IS_NULL().
 			AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))).
 			AND(Days.LastModifiedVersion.GT(sqlite.Int64(previousVersion))),

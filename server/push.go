@@ -380,6 +380,28 @@ func push(
 						return struct{}{}, false, fmt.Errorf("could not add poop: %w", err)
 					}
 				}
+			case "removePoop":
+				{
+					mutation, err := mutations.ParseRemovePoop(log, mutation.Args)
+					if err != nil {
+						return struct{}{}, false, err
+					}
+					log.WithFields(logrus.Fields{
+						"space_id": space.Id,
+						"args":     fmt.Sprintf("%#v", mutation),
+					}).Info("running remove poop mutation")
+					if err := db.RemovePoop(
+						ctx,
+						log,
+						tx,
+						space.Id,
+						nextVersion,
+						mutation.DayId,
+						mutation.PoopId,
+					); err != nil {
+						return struct{}{}, false, fmt.Errorf("could not remove poop: %w", err)
+					}
+				}
 			default:
 				return struct{}{}, false, fmt.Errorf("unknown mutation: \"%s\"", mutation.Name)
 			}

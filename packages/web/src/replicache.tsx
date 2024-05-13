@@ -156,6 +156,33 @@ const mutators = {
     } as const satisfies FrontendDay;
     await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
   },
+  async removePoop(
+    tx: WriteTransaction,
+    { id, poopId }: { id: string; poopId: string },
+  ) {
+    const day = (await tx.get(`day/${id}`)) as FrontendDay | null;
+    if (day == null) {
+      return;
+    }
+    if (typeof day !== 'object') {
+      return;
+    }
+    const poopIdx = day.poops.findIndex((p) => p.id === poopId);
+    if (poopIdx === -1) {
+      return;
+    }
+    const newPoops = [...day.poops];
+    newPoops.splice(poopIdx, 1);
+    const newDay = {
+      id,
+      date: day.date,
+      coffee: day.coffee,
+      dinner: day.dinner,
+      wakeUp: day.wakeUp,
+      poops: newPoops,
+    } as const satisfies FrontendDay;
+    await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
+  },
 };
 
 const hashText = async (text: string): Promise<string> => {

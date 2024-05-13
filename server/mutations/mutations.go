@@ -202,3 +202,31 @@ func ParseSetPoop(log *logrus.Logger, bs []byte) (SetPoop, error) {
 		OnRun:  args.OnRun,
 	}, nil
 }
+
+type RemovePoop struct {
+	PoopId string
+	DayId  string
+}
+
+func ParseRemovePoop(log *logrus.Logger, bs []byte) (RemovePoop, error) {
+	type removePoopRaw struct {
+		PoopId string `json:"poopId" validate:"required"`
+		DayId  string `json:"id" validate:"required"`
+	}
+	var args removePoopRaw
+	if err := newJsonDecoder(bs).Decode(&args); err != nil {
+		msg := "could not unmarshal remove poop args"
+		log.WithFields(logrus.Fields{
+			"args": string(bs),
+		}).Error(msg)
+		return RemovePoop{}, fmt.Errorf("%s: %w", msg, err)
+	}
+	if err := validate.Struct(args); err != nil {
+		msg := "invalid remove poop args"
+		log.WithFields(logrus.Fields{
+			"args": string(bs),
+		}).Error(msg)
+		return RemovePoop{}, fmt.Errorf("%s: %w", msg, err)
+	}
+	return RemovePoop(args), nil
+}

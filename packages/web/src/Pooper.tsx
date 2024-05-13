@@ -86,16 +86,12 @@ const Pooper: React.FC<{
         };
 
         const deleteSelf = () => {
-          //day
-          //  .map((d) => {
-          //    return {
-          //      ...d,
-          //      poops: [...d.poops.slice(0, idx), ...d.poops.slice(idx + 1)],
-          //    };
-          //  })
-          //  .ifJust((d) => {
-          //    setDay(d);
-          //  });
+          dayRep.ifJust((d) => {
+            rep?.mutate.removePoop({
+              id: d.id,
+              poopId: poop.id,
+            });
+          });
         };
         return (
           <ContextMenu.Root key={`${day}-${idx}`}>
