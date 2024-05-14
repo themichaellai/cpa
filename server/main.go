@@ -54,16 +54,37 @@ func setCorsHeaders(c *gin.Context) {
 	c.Header("Access-Control-Allow-Headers", "*")
 }
 
+func setPragmas(db *sqlx.DB) {
+	pragmas := []string{
+		"PRAGMA journal_mode = WAL;",
+		"PRAGMA synchronous = NORMAL;",
+		"PRAGMA cache_size = 1000000000;",
+		"PRAGMA foreign_keys = ON;",
+		"PRAGMA busy_timeout = 5000;",
+		"PRAGMA temp_store = memory;",
+	}
+
+	for _, pragma := range pragmas {
+		_, err := db.Exec(pragma)
+		if err != nil {
+			log.Fatalf("Error setting PRAGMA %s: %v", pragma, err)
+		}
+	}
+}
+
 func run() error {
 	var env envVars
 	if err := envvar.Parse(&env); err != nil {
 		return fmt.Errorf("could not parse env vars: %w", err)
 	}
 
-	db, err := sqlx.Connect("sqlite3", env.DbPath)
+	db, err := sqlx.Connect("sqlite3", fmt.Sprintf("%s?_txlock=immediate", env.DbPath))
 	if err != nil {
 		return fmt.Errorf("could not open database: %w", err)
 	}
+	db.SetMaxOpenConns(1)
+	setPragmas(db)
+
 	r := gin.Default()
 	r.GET("/ping", func(c *gin.Context) {
 		_, err = db.Query("select 1")
