@@ -50,7 +50,7 @@ interface StoredDays {
 
 type DaysMap = Partial<Record<IsoDate, Day>>;
 // TODO: add validation when reading from storage
-export const daysPersistedAtom = atomWithStorage<StoredDays>('days', {
+const daysPersistedAtom = atomWithStorage<StoredDays>('days', {
   version: 0,
   days: {},
 });

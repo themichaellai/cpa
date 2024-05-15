@@ -11,7 +11,6 @@ import clsx from 'clsx';
 import { useSubscribe } from 'replicache-react';
 import { Maybe, Nothing } from 'purify-ts/Maybe';
 
-import { useDay } from './store';
 import { IsoDate, IsoDateTime, now } from './time';
 import { useReplicache, FrontendDay } from './replicache';
 import TimePicker from './components/TimePicker';
@@ -36,7 +35,6 @@ const Pooper: React.FC<{
       dependencies: [date],
     },
   );
-  const [day, _setDay] = useDay(date);
 
   const poops = useMemo(
     () => dayRep.map((d) => d.poops).orDefault([]),
@@ -93,8 +91,9 @@ const Pooper: React.FC<{
             });
           });
         };
+        const dayId = dayRep.map((d) => d.id).orDefault('unknown');
         return (
-          <ContextMenu.Root key={`${day}-${idx}`}>
+          <ContextMenu.Root key={`${dayId}-${idx}`}>
             <ContextMenu.Trigger>
               <Card
                 className={clsx(
@@ -130,7 +129,7 @@ const Pooper: React.FC<{
           </ContextMenu.Root>
         );
       }),
-    [poops, day, dayRep, rep, date],
+    [poops, dayRep, rep, date],
   );
 
   return (

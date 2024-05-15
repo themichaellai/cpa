@@ -14,7 +14,6 @@ import { useSubscribe } from 'replicache-react';
 import { FrontendDay } from '../convex/days';
 import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
-import { useDay } from './store';
 import { IsoDateTime } from './time';
 import Pooper from './Pooper';
 import { useReplicache } from './replicache';
@@ -38,7 +37,6 @@ const localDateToDisplay = (date: LocalDate): string => {
 };
 
 function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
-  const [dayJotai, setDayJotai] = useDay(selectedDate);
   const rep = useReplicache();
 
   const dayRep = useSubscribe(
@@ -78,26 +76,18 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
             LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
             ZoneId.systemDefault(),
           ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime);
-    dayJotai.ifJust((d) => {
-      setDayJotai({
-        ...d,
-        wakeUp: {
-          time,
-        },
-      });
-      const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
-      rep?.mutate.setDay({
-        date: selectedDate.toString(),
-        id: repId,
-        wakeUp: {
-          time,
-        },
-        dinner: {
-          size: dayRep
-            .chain((d) => Maybe.fromNullable(d.dinner?.size))
-            .orDefault('regular'),
-        },
-      });
+    const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
+    rep?.mutate.setDay({
+      date: selectedDate.toString(),
+      id: repId,
+      wakeUp: {
+        time,
+      },
+      dinner: {
+        size: dayRep
+          .chain((d) => Maybe.fromNullable(d.dinner?.size))
+          .orDefault('regular'),
+      },
     });
   };
 
@@ -106,15 +96,6 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
   };
 
   const setDinner = (size: 'regular' | 'big') => {
-    dayJotai.ifJust((d) => {
-      setDayJotai({
-        ...d,
-        dinner: {
-          size,
-          time: null,
-        },
-      });
-    });
     const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
     const wakeUp = dayRep
       .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
