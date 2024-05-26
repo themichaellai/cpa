@@ -61,7 +61,6 @@ func getDays(
 	spaceId int64,
 	previousVersion int64,
 ) ([]dayDb, error) {
-	// TODO: debug this, poop deleted at is not null
 	stmt := sqlite.SELECT(Days.AllColumns, Poops.AllColumns).FROM(
 		Days.LEFT_JOIN(
 			Poops,
