@@ -1,22 +1,27 @@
 import {
+  convert,
+  DateTimeFormatter,
   LocalDate,
   LocalTime,
-  ZoneId,
   ZonedDateTime,
-  convert,
+  ZoneId,
 } from '@js-joda/core';
 import clsx from 'clsx';
 import { Button, Card, Flex } from '@radix-ui/themes';
-import { Maybe } from 'purify-ts/Maybe';
+import { Maybe, Nothing } from 'purify-ts/Maybe';
+import { useSubscribe } from 'replicache-react';
 
+import { FrontendDay } from '../convex/days';
 import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
-import { useDay } from './store';
 import { IsoDateTime } from './time';
 import Pooper from './Pooper';
+import { useReplicache } from './replicache';
+import { useEffect } from 'react';
 
 function BottomSheet({ selectedDate }: { selectedDate: LocalDate | null }) {
-  if (selectedDate == null) {
+  const rep = useReplicache();
+  if (selectedDate == null || rep == null) {
     return null;
   }
   return <BottomSheetContents selectedDate={selectedDate} />;
@@ -32,8 +37,32 @@ const localDateToDisplay = (date: LocalDate): string => {
 };
 
 function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
-  const [day, setDay] = useDay(selectedDate);
+  const rep = useReplicache();
 
+  const dayRep = useSubscribe(
+    rep,
+    async (tx): Promise<Maybe<FrontendDay>> => {
+      const allDays = (await tx
+        .scan({
+          prefix: `day/`,
+        })
+        .toArray()) as Array<FrontendDay>;
+      const day = allDays.find((d) => d.date === selectedDate.toString());
+      return Maybe.fromNullable(day);
+    },
+    {
+      default: Nothing,
+      dependencies: [selectedDate],
+    },
+  );
+
+  useEffect(() => {
+    console.log(
+      JSON.stringify({
+        dayRep,
+      }),
+    );
+  }, [dayRep]);
   const setWakeUp = (timeOffsetMillis?: number) => {
     const time: IsoDateTime =
       timeOffsetMillis == null
@@ -41,19 +70,24 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
             selectedDate,
             LocalTime.now(),
             ZoneId.systemDefault(),
-          ).toString() as IsoDateTime)
+          ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime)
         : (ZonedDateTime.of(
             selectedDate,
             LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
             ZoneId.systemDefault(),
-          ).toString() as IsoDateTime);
-    day.ifJust((d) => {
-      setDay({
-        ...d,
-        wakeUp: {
-          time,
-        },
-      });
+          ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime);
+    const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
+    rep?.mutate.setDay({
+      date: selectedDate.toString(),
+      id: repId,
+      wakeUp: {
+        time,
+      },
+      dinner: {
+        size: dayRep
+          .chain((d) => Maybe.fromNullable(d.dinner?.size))
+          .orDefault('regular'),
+      },
     });
   };
 
@@ -62,14 +96,19 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
   };
 
   const setDinner = (size: 'regular' | 'big') => {
-    day.ifJust((d) => {
-      setDay({
-        ...d,
-        dinner: {
-          size,
-          time: null,
-        },
-      });
+    const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
+    const wakeUp = dayRep
+      .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
+      .map<{ time: string } | null>((time) => ({
+        time,
+      }));
+    rep?.mutate.setDay({
+      date: selectedDate.toString(),
+      id: repId,
+      wakeUp: wakeUp.orDefault(null),
+      dinner: {
+        size,
+      },
     });
   };
 
@@ -80,9 +119,11 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
   }> = [
     {
       label: 'Wake up',
-      el: day
+      el: dayRep
         .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
-        .map((wakeUp) => <TimePicker time={wakeUp} onChange={setWakeUp} />)
+        .map((wakeUp) => (
+          <TimePicker time={wakeUp as IsoDateTime} onChange={setWakeUp} />
+        ))
         .orDefault(
           <Button variant="soft" onClick={setWakeUpNow}>
             Set
@@ -94,7 +135,7 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
       el: (
         <div className="flex justify-start">
           <SegmentedButton
-            selected={day
+            selected={dayRep
               .chain((d) => Maybe.fromNullable(d.dinner?.size))
               .extractNullable()}
             options={[

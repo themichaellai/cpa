@@ -10,7 +10,7 @@ export const now = (): IsoDateTime => {
 };
 
 export const parseDateTime = (
-  isoDateTime: IsoDateTime,
+  isoDateTime: string,
 ): Either<Error, ZonedDateTime> => {
   return Either.encase(() => ZonedDateTime.parse(isoDateTime));
 };
