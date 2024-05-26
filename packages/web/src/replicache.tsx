@@ -195,15 +195,15 @@ const hashText = async (text: string): Promise<string> => {
   return hashHex;
 };
 
+const REPLICACHE_ENDPOINT = import.meta.env.VITE_REPLICACHE_ENDPOINT;
+
 const newRep = async (userKey: string) => {
   const hashedKey = await hashText(userKey);
   return new Replicache({
     name: `cpa-${hashedKey}`,
     licenseKey: REPLICACHE_LICENSE,
-    //pushURL: 'https://glorious-mallard-686.convex.site/push',
-    //pullURL: 'https://glorious-mallard-686.convex.site/pull',
-    pushURL: 'http://localhost:8080/push',
-    pullURL: 'http://localhost:8080/pull',
+    pushURL: `${REPLICACHE_ENDPOINT}/push`,
+    pullURL: `${REPLICACHE_ENDPOINT}/pull`,
     auth: `Bearer ${userKey}`,
     mutators,
     pullInterval: 5000,

@@ -14,7 +14,8 @@ import (
 )
 
 type envVars struct {
-	DbPath string `envvar:"DB_PATH"`
+	DbPath     string `envvar:"DB_PATH"`
+	CorsOrigin string `envvar:"CORS_ORIGIN"`
 }
 
 var log = logrus.New()
@@ -48,10 +49,12 @@ func logError(err error) {
 	log.WithFields(fields).Error("error in handler")
 }
 
-func setCorsHeaders(c *gin.Context) {
-	c.Header("Access-Control-Allow-Origin", "http://localhost:3000")
-	c.Header("Access-Control-Allow-Methods", "POST")
-	c.Header("Access-Control-Allow-Headers", "*")
+func makeSetCorsHeaders(origin string) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", origin)
+		c.Header("Access-Control-Allow-Methods", "POST")
+		c.Header("Access-Control-Allow-Headers", "*")
+	}
 }
 
 func setPragmas(db *sqlx.DB) {
@@ -98,6 +101,8 @@ func run() error {
 			"message": "pong",
 		})
 	})
+
+	setCorsHeaders := makeSetCorsHeaders(env.CorsOrigin)
 
 	r.OPTIONS("/push", func(c *gin.Context) {
 		setCorsHeaders(c)
