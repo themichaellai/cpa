@@ -85,8 +85,11 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
       },
       dinner: {
         size: dayRep
-          .chain((d) => Maybe.fromNullable(d.dinner?.size))
-          .orDefault('regular'),
+          .chain(
+            (d): Maybe<NonNullable<FrontendDay['dinner']>['size']> =>
+              Maybe.fromNullable(d.dinner?.size),
+          )
+          .orDefault(null),
       },
     });
   };
