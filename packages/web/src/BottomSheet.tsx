@@ -159,7 +159,9 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
 
   return (
     <div className={clsx('my-5', 'mx-5')}>
-      <h1 className={clsx('text-xl')}>{localDateToDisplay(selectedDate)}</h1>
+      <h1 className={clsx('text-xl', 'font-medium')}>
+        {localDateToDisplay(selectedDate)}
+      </h1>
       {controls.map(({ label, labelAlignStart, el }) => (
         <Card key={label} className={clsx('mt-5')}>
           <Flex align={labelAlignStart ? 'start' : 'center'}>
