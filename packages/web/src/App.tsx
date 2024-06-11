@@ -6,8 +6,7 @@ import { UserWrapper } from './store/user';
 import { ReplicacheWrapper } from './replicache';
 import Calendar from './Calendar';
 import BottomSheet from './BottomSheet';
-import '@radix-ui/themes/styles.css';
-import './App.css';
+import './App.module.css';
 
 function App() {
   const [selectedDate, setSelectedDate] = useState<LocalDate>(LocalDate.now());
