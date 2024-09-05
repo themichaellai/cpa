@@ -17,14 +17,25 @@ import TimePicker from './components/TimePicker';
 import { IsoDateTime } from './time';
 import Pooper from './Pooper';
 import { useReplicache } from './replicache';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
-function BottomSheet({ selectedDate }: { selectedDate: LocalDate | null }) {
+function BottomSheet({
+  selectedDate,
+  setSelectedDate,
+}: {
+  selectedDate: LocalDate | null;
+  setSelectedDate: (date: LocalDate) => void;
+}) {
   const rep = useReplicache();
   if (selectedDate == null || rep == null) {
     return null;
   }
-  return <BottomSheetContents selectedDate={selectedDate} />;
+  return (
+    <BottomSheetContents
+      selectedDate={selectedDate}
+      setSelectedDate={setSelectedDate}
+    />
+  );
 }
 
 const localDateToDisplay = (date: LocalDate): string => {
@@ -36,7 +47,13 @@ const localDateToDisplay = (date: LocalDate): string => {
   return res;
 };
 
-function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
+function BottomSheetContents({
+  selectedDate,
+  setSelectedDate,
+}: {
+  selectedDate: LocalDate;
+  setSelectedDate: (date: LocalDate) => void;
+}) {
   const rep = useReplicache();
 
   const dayRep = useSubscribe(
@@ -157,11 +174,26 @@ function BottomSheetContents({ selectedDate }: { selectedDate: LocalDate }) {
     },
   ];
 
+  const isToday = useMemo(() => {
+    const now = LocalDate.now();
+    return now.equals(selectedDate);
+  }, [selectedDate]);
+  const goToToday = () => {
+    setSelectedDate(LocalDate.now());
+  };
+
   return (
     <div className={clsx('my-5', 'mx-5')}>
-      <h1 className={clsx('text-xl', 'font-medium')}>
-        {localDateToDisplay(selectedDate)}
-      </h1>
+      <div className="flex items-center gap-3">
+        <h1 className={clsx('text-xl', 'font-medium')}>
+          {localDateToDisplay(selectedDate)}
+        </h1>
+        {isToday ? null : (
+          <Button variant="soft" size="1" onClick={goToToday}>
+            &#x2934; Today
+          </Button>
+        )}
+      </div>
       {controls.map(({ label, labelAlignStart, el }) => (
         <Card key={label} className={clsx('mt-5')}>
           <Flex align={labelAlignStart ? 'start' : 'center'}>
