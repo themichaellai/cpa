@@ -10,13 +10,29 @@ import './App.module.css';
 
 function App() {
   const [selectedDate, setSelectedDate] = useState<LocalDate>(LocalDate.now());
+  const [activeStartDate, setActiveStartDate] = useState<LocalDate | null>(() =>
+    selectedDate.withDayOfMonth(1),
+  );
+
+  const changeSelectedDate = (date: LocalDate) => {
+    setSelectedDate(date);
+    setActiveStartDate(date.withDayOfMonth(1));
+  };
 
   return (
     <UserWrapper>
       <ReplicacheWrapper>
         <Theme accentColor="purple">
-          <Calendar value={selectedDate} onChange={setSelectedDate} />
-          <BottomSheet selectedDate={selectedDate} />
+          <Calendar
+            value={selectedDate}
+            onChange={setSelectedDate}
+            activeStartDate={activeStartDate}
+            onActiveStartDateChange={setActiveStartDate}
+          />
+          <BottomSheet
+            selectedDate={selectedDate}
+            setSelectedDate={changeSelectedDate}
+          />
         </Theme>
       </ReplicacheWrapper>
     </UserWrapper>
