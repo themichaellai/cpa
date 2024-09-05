@@ -1,9 +1,16 @@
 import * as bip39 from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { PropsWithChildren, createContext, useContext, useState } from 'react';
+import {
+  PropsWithChildren,
+  createContext,
+  useCallback,
+  useContext,
+  useState,
+} from 'react';
 
 interface User {
   passphrase: string;
+  setPassphrase: (passphrase: string) => void;
 }
 
 const PASSPHRASE_KEY = 'cpa-user';
@@ -28,10 +35,26 @@ export const useUserToken = (): string => {
   return user.passphrase;
 };
 
+export const useUserContext = (): User => {
+  const user = useContext(UserContext);
+  if (user == null) {
+    throw new Error('useUserContext must be used within a UserWrapper');
+  }
+  return user;
+};
+
 export const UserWrapper: React.FC<PropsWithChildren> = (props) => {
-  const [passphrase] = useState(() => getOrCreatePassphrase());
+  const [passphrase, setPassphrase] = useState(() => getOrCreatePassphrase());
+
+  const changePassphrase = useCallback((newPassphrase: string) => {
+    localStorage.setItem(PASSPHRASE_KEY, newPassphrase);
+    setPassphrase(newPassphrase);
+  }, []);
+
   return (
-    <UserContext.Provider value={{ passphrase: passphrase }}>
+    <UserContext.Provider
+      value={{ passphrase: passphrase, setPassphrase: changePassphrase }}
+    >
       {props.children}
     </UserContext.Provider>
   );

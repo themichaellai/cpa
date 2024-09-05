@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useMemo,
 } from 'react';
 import { ReadonlyJSONObject, Replicache, WriteTransaction } from 'replicache';
 
@@ -197,8 +198,13 @@ const hashText = async (text: string): Promise<string> => {
 
 const REPLICACHE_ENDPOINT = import.meta.env.VITE_REPLICACHE_ENDPOINT;
 
-const newRep = async (userKey: string) => {
-  const hashedKey = await hashText(userKey);
+const newRep = ({
+  userKey,
+  hashedKey,
+}: {
+  userKey: string;
+  hashedKey: string;
+}) => {
   return new Replicache({
     name: `cpa-${hashedKey}`,
     licenseKey: REPLICACHE_LICENSE,
@@ -214,6 +220,18 @@ const ReplicacheContext = createContext<
   Replicache<typeof mutators> | 'initializing' | null
 >(null);
 
+const useUserTokenHash = (): { userToken: string; hash: string } | null => {
+  const userToken = useUserToken();
+  const [hash, setHash] = useState<string | null>(null);
+  useEffect(() => {
+    hashText(userToken).then(setHash);
+  }, [userToken]);
+  return useMemo(
+    () => (hash == null ? null : { userToken, hash }),
+    [hash, userToken],
+  );
+};
+
 export const useReplicache = (): Replicache<typeof mutators> | null => {
   const rep = useContext(ReplicacheContext);
   if (rep == null) {
@@ -223,13 +241,26 @@ export const useReplicache = (): Replicache<typeof mutators> | null => {
 };
 
 export const ReplicacheWrapper: React.FC<PropsWithChildren> = (props) => {
-  const userToken = useUserToken();
+  const userToken = useUserTokenHash();
   const [rep, setRep] = useState<Replicache<typeof mutators> | 'initializing'>(
     'initializing',
   );
   useEffect(() => {
-    newRep(userToken).then((r) => setRep(r));
-  }, [userToken]);
+    if (userToken?.hash == null) {
+      return;
+    }
+    const rep = newRep({
+      hashedKey: userToken.hash,
+      userKey: userToken.userToken,
+    });
+    setRep(rep);
+    return () => {
+      rep.close().then(() => {
+        console.log('replicache closed');
+      });
+    };
+  }, [userToken?.hash, userToken?.userToken]);
+
   useEffect(() => {
     if (rep != null) {
       console.log('got rep', rep);
