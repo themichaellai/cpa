@@ -1,12 +1,14 @@
 import { useMemo, useRef } from 'react';
 import { Button } from '@radix-ui/themes';
 import { Either } from 'purify-ts/Either';
-import { convert } from '@js-joda/core';
+import { convert, ZoneId } from '@js-joda/core';
 
 import { formatTimeForDisplay, IsoDateTime, parseDateTime } from '../time';
 
 const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
-  const parsed = parseDateTime(dt);
+  const parsed = parseDateTime(dt).map((dt) =>
+    dt.withZoneSameLocal(ZoneId.SYSTEM),
+  );
   // format as 24 hour time
   return parsed.map((dateTime) => {
     return convert(dateTime).toDate().toLocaleTimeString('en-US', {
