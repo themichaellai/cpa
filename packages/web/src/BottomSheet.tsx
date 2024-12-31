@@ -8,16 +8,15 @@ import {
 } from '@js-joda/core';
 import clsx from 'clsx';
 import { Button, Card, Flex } from '@radix-ui/themes';
-import { Maybe, Nothing } from 'purify-ts/Maybe';
+import { Maybe } from 'purify-ts/Maybe';
 import { useSubscribe } from 'replicache-react';
 
-import { FrontendDay } from '../convex/days';
 import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
 import { IsoDateTime } from './time';
 import Pooper from './Pooper';
-import { useReplicache } from './replicache';
-import { useEffect, useMemo } from 'react';
+import { FrontendDay, useReplicache } from './replicache';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 function BottomSheet({
   selectedDate,
@@ -47,6 +46,51 @@ const localDateToDisplay = (date: LocalDate): string => {
   return res;
 };
 
+const setCommentRep = (
+  rep: ReturnType<typeof useReplicache>,
+  selectedDate: LocalDate,
+  dayRep: Maybe<FrontendDay>,
+  comment: string,
+): void => {
+  const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
+  const wakeUp = dayRep
+    .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
+    .map<{ time: string } | null>((time) => ({
+      time,
+    }));
+  rep?.mutate.setDay({
+    date: selectedDate.toString(),
+    id: repId,
+    wakeUp: wakeUp.orDefault(null),
+    dinner: {
+      size: dayRep
+        .chain(
+          (d): Maybe<NonNullable<FrontendDay['dinner']>['size']> =>
+            Maybe.fromNullable(d.dinner?.size),
+        )
+        .orDefault(null),
+    },
+    comment,
+  });
+};
+
+const useSetCommentState = (
+  rep: ReturnType<typeof useReplicache>,
+  selectedDate: LocalDate,
+  dayRep: Maybe<FrontendDay>,
+): [string, (comment: string) => void] => {
+  const comment = dayRep
+    .chain((d) => Maybe.fromNullable(d.comment))
+    .orDefault('');
+  const setCommentState = useCallback(
+    (comment: string) => {
+      setCommentRep(rep, selectedDate, dayRep, comment);
+    },
+    [rep, selectedDate, dayRep],
+  );
+  return [comment, setCommentState];
+};
+
 function BottomSheetContents({
   selectedDate,
   setSelectedDate,
@@ -56,19 +100,21 @@ function BottomSheetContents({
 }) {
   const rep = useReplicache();
 
-  const dayRep = useSubscribe(
+  const dayRep: Maybe<FrontendDay> = useSubscribe(
     rep,
     async (tx): Promise<Maybe<FrontendDay>> => {
       const allDays = (await tx
         .scan({
           prefix: `day/`,
         })
-        .toArray()) as Array<FrontendDay>;
+        .toArray()) as unknown as Array<FrontendDay>;
       const day = allDays.find((d) => d.date === selectedDate.toString());
       return Maybe.fromNullable(day);
     },
     {
-      default: Nothing,
+      // HAX: For some reason `Nothing` is not assignable to
+      // `Maybe<FrontendDay>`.
+      default: Maybe.fromNullable<FrontendDay>(null),
       dependencies: [selectedDate],
     },
   );
@@ -108,6 +154,9 @@ function BottomSheetContents({
           )
           .orDefault(null),
       },
+      comment: dayRep
+        .chain((d): Maybe<string | null> => Maybe.fromNullable(d.comment))
+        .orDefault(null),
     });
   };
 
@@ -129,8 +178,13 @@ function BottomSheetContents({
       dinner: {
         size,
       },
+      comment: dayRep
+        .chain((d): Maybe<string | null> => Maybe.fromNullable(d.comment))
+        .orDefault(null),
     });
   };
+
+  const [comment, setComment] = useSetCommentState(rep, selectedDate, dayRep);
 
   const controls: Array<{
     label: string;
@@ -172,6 +226,11 @@ function BottomSheetContents({
       labelAlignStart: true,
       el: <Pooper date={selectedDate} />,
     },
+    {
+      label: 'Notes',
+      labelAlignStart: true,
+      el: <NotesField cleanValue={comment} setNotes={setComment} />,
+    },
   ];
 
   const isToday = useMemo(() => {
@@ -183,7 +242,7 @@ function BottomSheetContents({
   };
 
   return (
-    <div className={clsx('my-5', 'mx-5')}>
+    <div className={clsx('mt-5', 'mx-5')}>
       <div className="flex items-center gap-3">
         <h1 className={clsx('text-xl', 'font-medium')}>
           {localDateToDisplay(selectedDate)}
@@ -204,6 +263,68 @@ function BottomSheetContents({
           </Flex>
         </Card>
       ))}
+    </div>
+  );
+}
+
+function NotesField({
+  cleanValue,
+  setNotes,
+}: {
+  cleanValue: string;
+  setNotes: (notes: string) => void;
+}) {
+  const [dirtyState, setDirtyState] = useState<{
+    value: string;
+    showingSave: boolean;
+  } | null>(null);
+
+  const buttons =
+    dirtyState == null || !dirtyState.showingSave ? null : (
+      <>
+        <Button
+          variant="soft"
+          size="1"
+          onClick={() => {
+            console.log('Saving notes', dirtyState.value);
+            setNotes(dirtyState.value);
+            setDirtyState(null);
+          }}
+        >
+          Save
+        </Button>
+        <Button
+          color="gray"
+          variant="soft"
+          size="1"
+          onClick={() => {
+            setDirtyState(null);
+          }}
+        >
+          Cancel
+        </Button>
+      </>
+    );
+
+  return (
+    <div className="flex flex-col gap-2 items-start">
+      <textarea
+        className="flex min-h-[60px] w-full rounded-3 border border-purple-3 bg-transparent px-3 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-6 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+        placeholder="Notes"
+        value={dirtyState == null ? cleanValue : dirtyState.value}
+        onChange={(e) => {
+          setDirtyState({
+            showingSave: true,
+            value: e.target.value,
+          });
+        }}
+        onBlur={() => {
+          if (dirtyState != null && dirtyState.value === cleanValue) {
+            setDirtyState(null);
+          }
+        }}
+      />
+      <div className="flex gap-1">{buttons}</div>
     </div>
   );
 }

@@ -38,19 +38,23 @@ function MainApp({ goToSettings }: { goToSettings: () => void }) {
 
   return (
     <UserWrapper>
-      <ReplicacheWrapper>
-        <Calendar
-          value={selectedDate}
-          onChange={setSelectedDate}
-          activeStartDate={activeStartDate}
-          onActiveStartDateChange={setActiveStartDate}
-        />
-        <BottomSheet
-          selectedDate={selectedDate}
-          setSelectedDate={changeSelectedDate}
-        />
-      </ReplicacheWrapper>
-      <div className="mx-5 mb-3">
+      <ReplicacheWrapper
+        render={() => (
+          <>
+            <Calendar
+              value={selectedDate}
+              onChange={setSelectedDate}
+              activeStartDate={activeStartDate}
+              onActiveStartDateChange={setActiveStartDate}
+            />
+            <BottomSheet
+              selectedDate={selectedDate}
+              setSelectedDate={changeSelectedDate}
+            />
+          </>
+        )}
+      />
+      <div className="mx-5 mt-5 mb-3">
         <Button variant="ghost" onClick={() => goToSettings()} size="1">
           ⚙️ Settings
         </Button>
