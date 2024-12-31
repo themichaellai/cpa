@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/plaid/go-envvar/envvar"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
 )
 
 type envVars struct {
@@ -22,11 +24,12 @@ var log = logrus.New()
 
 var bearerRegexp = regexp.MustCompile(`^[Bb]earer (.+)$`)
 
-func parseAuthFromHeader(c *gin.Context) (string, error) {
-	auth := c.GetHeader("Authorization")
+func parseAuthFromHeader(c echo.Context) (string, error) {
+	auth := c.Request().Header.Get("Authorization")
 	if auth == "" {
 		return "", fmt.Errorf("no Authorization header")
 	}
+
 	matches := bearerRegexp.FindStringSubmatch(auth)
 	if matches == nil {
 		return "", UserError{
@@ -47,14 +50,6 @@ func logError(err error) {
 		fields["internal_message"] = userErr.internalMessage
 	}
 	log.WithFields(fields).Error("error in handler")
-}
-
-func makeSetCorsHeaders(origin string) func(c *gin.Context) {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", origin)
-		c.Header("Access-Control-Allow-Methods", "POST")
-		c.Header("Access-Control-Allow-Headers", "*")
-	}
 }
 
 func setPragmas(db *sqlx.DB) {
@@ -88,97 +83,95 @@ func run() error {
 	db.SetMaxOpenConns(1)
 	setPragmas(db)
 
-	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		_, err = db.Query("select 1")
+	e := echo.New()
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{env.CorsOrigin},
+		AllowMethods: []string{http.MethodPost, http.MethodOptions},
+		AllowHeaders: []string{"*"},
+	}))
+
+	// Logging middleware (Echo has its own, but you could wrap logrus as well)
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
+	// Health check route
+	e.GET("/ping", func(c echo.Context) error {
+		err := db.Get(new(int), "select 1")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 				"message": "error",
 			})
-			return
 		}
-		c.JSON(http.StatusOK, gin.H{
+		return c.JSON(http.StatusOK, map[string]interface{}{
 			"message": "pong",
 		})
 	})
 
-	setCorsHeaders := makeSetCorsHeaders(env.CorsOrigin)
-
-	r.OPTIONS("/push", func(c *gin.Context) {
-		setCorsHeaders(c)
-		c.Status(http.StatusOK)
+	e.OPTIONS("/push", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
 	})
 
-	r.POST("/push", func(c *gin.Context) {
-		setCorsHeaders(c)
+	e.POST("/push", func(c echo.Context) error {
 		auth, err := parseAuthFromHeader(c)
 		if err != nil {
 			logError(err)
-			c.JSON(http.StatusUnauthorized, gin.H{
+			return c.JSON(http.StatusUnauthorized, map[string]interface{}{
 				"message": "unauthorized",
 			})
-			return
 		}
 
 		var data pushRequest
-		if err := c.BindJSON(&data); err != nil {
-			log.WithFields(logrus.Fields{
-				"err": err,
-			}).Error("error")
-			c.JSON(http.StatusBadRequest, gin.H{
+		if err := c.Bind(&data); err != nil {
+			log.WithFields(logrus.Fields{"err": err}).Error("error")
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"message": "error",
 			})
-			return
 		}
-		resp, err := push(c, db, auth, data)
+
+		resp, err := push(c.Request().Context(), db, auth, data)
 		if err != nil {
 			logError(err)
-			c.JSON(http.StatusInternalServerError, gin.H{
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 				"message": "error",
 			})
-			return
 		}
-		c.JSON(http.StatusOK, resp)
+		return c.JSON(http.StatusOK, resp)
 	})
 
-	r.OPTIONS("/pull", func(c *gin.Context) {
-		setCorsHeaders(c)
-		c.Status(http.StatusOK)
+	e.OPTIONS("/pull", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
 	})
 
-	r.POST("/pull", func(c *gin.Context) {
-		setCorsHeaders(c)
+	e.POST("/pull", func(c echo.Context) error {
 		auth, err := parseAuthFromHeader(c)
 		if err != nil {
 			logError(err)
-			c.JSON(http.StatusUnauthorized, gin.H{
+			return c.JSON(http.StatusUnauthorized, map[string]interface{}{
 				"message": "unauthorized",
 			})
-			return
 		}
 
 		var data pullRequest
-		if err := c.BindJSON(&data); err != nil {
-			log.WithFields(logrus.Fields{
-				"err": err,
-			}).Error("error")
-			c.JSON(http.StatusBadRequest, gin.H{
+		if err := c.Bind(&data); err != nil {
+			log.WithFields(logrus.Fields{"err": err}).Error("error")
+			return c.JSON(http.StatusBadRequest, map[string]interface{}{
 				"message": "error",
 			})
-			return
 		}
-		resp, err := pull(c, db, auth, data)
+
+		resp, err := pull(c.Request().Context(), db, auth, data)
 		if err != nil {
 			logError(err)
-			c.JSON(http.StatusInternalServerError, gin.H{
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
 				"message": "error",
 			})
-			return
 		}
-		c.JSON(http.StatusOK, resp)
+		return c.JSON(http.StatusOK, resp)
 	})
 
-	return r.Run() // listen and serve on 0.0.0.0:8080 (for windows "localhost:8080")
+	// Start server on 0.0.0.0:8080
+	return e.StartH2CServer(":8080", &http2.Server{})
 }
 
 func main() {

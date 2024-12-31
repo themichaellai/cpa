@@ -168,7 +168,7 @@ func getUpdatedClients(
 			AND(ReplicacheClients.LastModifiedVersion.GT(sqlite.Int64(previousVersion))),
 		)
 	var clients []model.ReplicacheClients
-	if err := stmt.Query(tx, &clients); err != nil {
+	if err := stmt.QueryContext(context, tx, &clients); err != nil {
 		return nil, fmt.Errorf("could not get clients: %w", err)
 	}
 	return clients, nil
