@@ -114,6 +114,7 @@ type dayResp struct {
 	Dinner     *dinnerResp `json:"dinner"`
 	WakeUpTime *wakeUpResp `json:"wakeUp"`
 	Poops      []poopResp  `json:"poops"`
+	Comment    *string     `json:"comment"`
 }
 
 func dayDbToResp(day dayDb) (dayResp, error) {
@@ -152,6 +153,7 @@ func dayDbToResp(day dayDb) (dayResp, error) {
 		},
 		WakeUpTime: wakeUpTime,
 		Poops:      poops,
+		Comment:    day.Comment,
 	}, nil
 }
 

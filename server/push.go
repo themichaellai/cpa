@@ -301,32 +301,33 @@ func push(
 								"external_id_req": args.Id,
 								"external_id_db":  dayExisting.ExternalId,
 							}).Error(errMsg)
-							return struct{}{}, false, fmt.Errorf(errMsg)
+							return struct{}{}, false, fmt.Errorf("%s", errMsg)
 						}
 					}
 				}
 			case "setDay":
 				{
-					mutationSetWakeUp, err := mutations.ParseSetDay(log, mutation.Args)
+					mutationSetDay, err := mutations.ParseSetDay(log, mutation.Args)
 					if err != nil {
 						return struct{}{}, false, err
 					}
 					log.WithFields(logrus.Fields{
 						"space_id": space.Id,
-						"args":     fmt.Sprintf("%#v", mutationSetWakeUp),
+						"args":     fmt.Sprintf("%#v", mutationSetDay),
 					}).Info("running set day mutation")
 					if err := db.SetDay(
 						ctx,
 						tx,
 						space.Id,
 						nextVersion,
-						mutationSetWakeUp.Date,
-						mutationSetWakeUp.Id,
-						mutationSetWakeUp.WakeUpTime,
-						mutationSetWakeUp.WakeUpTimeTz,
-						mutationSetWakeUp.DinnerSize,
+						mutationSetDay.Date,
+						mutationSetDay.Id,
+						mutationSetDay.WakeUpTime,
+						mutationSetDay.WakeUpTimeTz,
+						mutationSetDay.DinnerSize,
+						mutationSetDay.Comment,
 					); err != nil {
-						return struct{}{}, false, fmt.Errorf("could not set wake up time: %w", err)
+						return struct{}{}, false, fmt.Errorf("could not set day: %w", err)
 					}
 				}
 			case "addPoop":

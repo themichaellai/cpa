@@ -30,6 +30,7 @@ type daysTable struct {
 	LastModifiedVersion sqlite.ColumnInteger
 	SpaceID             sqlite.ColumnInteger
 	DeletedAt           sqlite.ColumnString
+	Comment             sqlite.ColumnString
 
 	AllColumns     sqlite.ColumnList
 	MutableColumns sqlite.ColumnList
@@ -83,8 +84,9 @@ func newDaysTableImpl(schemaName, tableName, alias string) daysTable {
 		LastModifiedVersionColumn = sqlite.IntegerColumn("last_modified_version")
 		SpaceIDColumn             = sqlite.IntegerColumn("space_id")
 		DeletedAtColumn           = sqlite.StringColumn("deleted_at")
-		allColumns                = sqlite.ColumnList{IDColumn, ExternalIDColumn, DateColumn, CoffeeTimeColumn, CoffeeTimeTzColumn, DinnerTimeColumn, DinnerTimeTzColumn, DinnerSizeColumn, WakeUpTimeColumn, WakeUpTimeTzColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn}
-		mutableColumns            = sqlite.ColumnList{ExternalIDColumn, DateColumn, CoffeeTimeColumn, CoffeeTimeTzColumn, DinnerTimeColumn, DinnerTimeTzColumn, DinnerSizeColumn, WakeUpTimeColumn, WakeUpTimeTzColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn}
+		CommentColumn             = sqlite.StringColumn("comment")
+		allColumns                = sqlite.ColumnList{IDColumn, ExternalIDColumn, DateColumn, CoffeeTimeColumn, CoffeeTimeTzColumn, DinnerTimeColumn, DinnerTimeTzColumn, DinnerSizeColumn, WakeUpTimeColumn, WakeUpTimeTzColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn, CommentColumn}
+		mutableColumns            = sqlite.ColumnList{ExternalIDColumn, DateColumn, CoffeeTimeColumn, CoffeeTimeTzColumn, DinnerTimeColumn, DinnerTimeTzColumn, DinnerSizeColumn, WakeUpTimeColumn, WakeUpTimeTzColumn, LastModifiedVersionColumn, SpaceIDColumn, DeletedAtColumn, CommentColumn}
 	)
 
 	return daysTable{
@@ -104,6 +106,7 @@ func newDaysTableImpl(schemaName, tableName, alias string) daysTable {
 		LastModifiedVersion: LastModifiedVersionColumn,
 		SpaceID:             SpaceIDColumn,
 		DeletedAt:           DeletedAtColumn,
+		Comment:             CommentColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

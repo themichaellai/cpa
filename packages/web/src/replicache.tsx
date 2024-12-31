@@ -1,11 +1,4 @@
-import {
-  createContext,
-  PropsWithChildren,
-  useContext,
-  useEffect,
-  useState,
-  useMemo,
-} from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { ReadonlyJSONObject, Replicache, WriteTransaction } from 'replicache';
 
 import { useUserToken } from './store/user';
@@ -35,6 +28,7 @@ export interface FrontendDay {
     readonly time: string;
   } | null;
   readonly poops: ReadonlyArray<Poop>;
+  readonly comment?: string | null;
 }
 
 const mutators = {
@@ -45,6 +39,7 @@ const mutators = {
       wakeUp,
       date,
       dinner,
+      comment,
     }: {
       id: string;
       date: string;
@@ -54,6 +49,7 @@ const mutators = {
       dinner: {
         size: 'regular' | 'big' | null;
       } | null;
+      comment: string | null;
     },
   ) {
     const day = await tx.get(`day/${id}`);
@@ -71,12 +67,14 @@ const mutators = {
         poops: [],
         date,
         id,
+        comment,
       } satisfies FrontendDay);
     } else {
       await tx.set(`day/${id}`, {
         ...day,
         wakeUp,
         dinner,
+        comment,
       });
     }
   },
@@ -212,7 +210,7 @@ const newRep = ({
     pullURL: `${REPLICACHE_ENDPOINT}/pull`,
     auth: `Bearer ${userKey}`,
     mutators,
-    pullInterval: 5000,
+    pullInterval: 20000,
   });
 };
 
@@ -240,7 +238,9 @@ export const useReplicache = (): Replicache<typeof mutators> | null => {
   return rep === 'initializing' ? null : rep;
 };
 
-export const ReplicacheWrapper: React.FC<PropsWithChildren> = (props) => {
+export const ReplicacheWrapper: React.FC<{
+  render: () => React.ReactNode;
+}> = (props) => {
   const userToken = useUserTokenHash();
   const [rep, setRep] = useState<Replicache<typeof mutators> | 'initializing'>(
     'initializing',
@@ -269,7 +269,7 @@ export const ReplicacheWrapper: React.FC<PropsWithChildren> = (props) => {
 
   return (
     <ReplicacheContext.Provider value={rep}>
-      {props.children}
+      {rep === 'initializing' ? null : props.render()}
     </ReplicacheContext.Provider>
   );
 };

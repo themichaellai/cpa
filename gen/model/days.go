@@ -21,4 +21,5 @@ type Days struct {
 	LastModifiedVersion int32
 	SpaceID             int32
 	DeletedAt           *string
+	Comment             *string
 }

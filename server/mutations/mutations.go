@@ -29,6 +29,7 @@ type SetDay struct {
 	WakeUpTime   *time.Time
 	WakeUpTimeTz *time.Location
 	DinnerSize   *db.DinnerSize
+	Comment      *string
 }
 
 var timeZoneRegexp = regexp.MustCompile(`^([^[]+)\[(.+)\]$`)
@@ -59,6 +60,7 @@ func ParseSetDay(log *logrus.Logger, bs []byte) (SetDay, error) {
 		Dinner *struct {
 			Size *string `json:"size"`
 		} `json:"dinner"`
+		Comment *string `json:"comment"`
 	}
 	var args setDayRaw
 	if err := newJsonDecoder(bs).Decode(&args); err != nil {
@@ -100,6 +102,7 @@ func ParseSetDay(log *logrus.Logger, bs []byte) (SetDay, error) {
 		WakeUpTime:   wakeUpTime,
 		WakeUpTimeTz: wakeUpTimeTz,
 		DinnerSize:   dinnerSize,
+		Comment:      args.Comment,
 	}, nil
 }
 

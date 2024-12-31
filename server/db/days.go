@@ -90,6 +90,13 @@ func timeToSqliteTime(t *time.Time) interface{} {
 	return sqlite.DateTime(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), time.Duration(t.Nanosecond()))
 }
 
+func stringToSqliteString(s *string) interface{} {
+	if s == nil {
+		return sqlite.NULL
+	}
+	return sqlite.String(*s)
+}
+
 func SetDay(
 	ctx context.Context,
 	tx *sqlx.Tx,
@@ -100,6 +107,7 @@ func SetDay(
 	wakeUpTime *time.Time,
 	wakeUpTimeTz *time.Location,
 	dinnerSize *DinnerSize,
+	comment *string,
 ) error {
 	dayId, err := getOrCreateDay(ctx, tx, spaceId, date, dayExternalId)
 	if err != nil {
@@ -110,17 +118,19 @@ func SetDay(
 		Days.WakeUpTimeTz,
 		Days.LastModifiedVersion,
 		Days.DinnerSize,
+		Days.Comment,
 	).
 		SET(
 			timeToSqliteTime(wakeUpTime),
 			sqlite.String(wakeUpTimeTz.String()),
 			sqlite.Int64(lastModifiedVersion),
 			dinnerSize.ToSql(),
+			stringToSqliteString(comment),
 		).
 		WHERE(Days.ID.EQ(sqlite.Int32(dayId))).
 		ExecContext(ctx, tx)
 	if err != nil {
-		return fmt.Errorf("could not update wake up time: %w", err)
+		return fmt.Errorf("could not update day: %w", err)
 	}
 	rowsChanged, err := res.RowsAffected()
 	if err != nil {
