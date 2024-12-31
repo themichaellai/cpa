@@ -109,6 +109,7 @@ const mutators = {
       dinner: day?.dinner ?? null,
       wakeUp: day?.wakeUp ?? null,
       poops: newPoops,
+      comment: day?.comment ?? null,
     } as const satisfies FrontendDay;
     await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
   },
@@ -152,6 +153,7 @@ const mutators = {
       dinner: day?.dinner ?? null,
       wakeUp: day?.wakeUp ?? null,
       poops: newPoops,
+      comment: day?.comment ?? null,
     } as const satisfies FrontendDay;
     await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
   },
@@ -179,6 +181,7 @@ const mutators = {
       dinner: day.dinner,
       wakeUp: day.wakeUp,
       poops: newPoops,
+      comment: day.comment,
     } as const satisfies FrontendDay;
     await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
   },
