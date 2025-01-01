@@ -31,6 +31,7 @@ function BottomSheet({
   }
   return (
     <BottomSheetContents
+      key={selectedDate.toString()}
       selectedDate={selectedDate}
       setSelectedDate={setSelectedDate}
     />
@@ -282,20 +283,12 @@ function NotesField({
   const buttons =
     dirtyState == null || !dirtyState.showingSave ? null : (
       <>
-        <Button
-          variant="soft"
-          size="1"
-          onClick={() => {
-            console.log('Saving notes', dirtyState.value);
-            setNotes(dirtyState.value);
-            setDirtyState(null);
-          }}
-        >
+        <Button variant="solid" size="1" type="submit">
           Save
         </Button>
         <Button
           color="gray"
-          variant="soft"
+          variant="solid"
           size="1"
           onClick={() => {
             setDirtyState(null);
@@ -307,7 +300,16 @@ function NotesField({
     );
 
   return (
-    <div className="flex flex-col gap-2 items-start">
+    <form
+      className="flex flex-col gap-2 items-start"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dirtyState?.showingSave) {
+          setNotes(dirtyState.value);
+          setDirtyState(null);
+        }
+      }}
+    >
       <textarea
         className="flex min-h-[60px] w-full rounded-3 border border-purple-3 bg-transparent px-3 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-6 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
         placeholder="Notes"
@@ -318,6 +320,16 @@ function NotesField({
             value: e.target.value,
           });
         }}
+        onFocus={() => {
+          setDirtyState((s) =>
+            s != null
+              ? s
+              : {
+                  value: cleanValue,
+                  showingSave: true,
+                },
+          );
+        }}
         onBlur={() => {
           if (dirtyState != null && dirtyState.value === cleanValue) {
             setDirtyState(null);
@@ -325,7 +337,7 @@ function NotesField({
         }}
       />
       <div className="flex gap-1">{buttons}</div>
-    </div>
+    </form>
   );
 }
 
