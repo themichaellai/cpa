@@ -21,9 +21,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 function BottomSheet({
   selectedDate,
   setSelectedDate,
+  className,
 }: {
   selectedDate: LocalDate | null;
   setSelectedDate: (date: LocalDate) => void;
+  className?: string;
 }) {
   const rep = useReplicache();
   if (selectedDate == null || rep == null) {
@@ -34,6 +36,7 @@ function BottomSheet({
       key={selectedDate.toString()}
       selectedDate={selectedDate}
       setSelectedDate={setSelectedDate}
+      className={className}
     />
   );
 }
@@ -95,9 +98,11 @@ const useSetCommentState = (
 function BottomSheetContents({
   selectedDate,
   setSelectedDate,
+  className,
 }: {
   selectedDate: LocalDate;
   setSelectedDate: (date: LocalDate) => void;
+  className?: string;
 }) {
   const rep = useReplicache();
 
@@ -243,9 +248,9 @@ function BottomSheetContents({
   };
 
   return (
-    <div className={clsx('mt-5', 'mx-5')}>
+    <div className={className}>
       <div className="flex items-center gap-3">
-        <h1 className={clsx('text-xl', 'font-medium')}>
+        <h1 className={clsx('text-xl', 'font-bold')}>
           {localDateToDisplay(selectedDate)}
         </h1>
         {isToday ? null : (

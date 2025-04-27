@@ -2,7 +2,6 @@ import { useMemo, useRef } from 'react';
 import { Button } from '@radix-ui/themes';
 import { Either } from 'purify-ts/Either';
 import { convert, ZoneId } from '@js-joda/core';
-
 import { formatTimeForDisplay, IsoDateTime, parseDateTime } from '../time';
 
 const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
@@ -69,7 +68,7 @@ const TimePicker = ({
       </Button>
       <input
         type="time"
-        className="absolute bg-transparent"
+        className="absolute opacity-0 w-0 h-0 overflow-hidden"
         ref={inputRef}
         value={formFormattedTime}
         onChange={onTimeInputChange}

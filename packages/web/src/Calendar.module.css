@@ -1,8 +1,8 @@
 .calendar {
   width: 100%;
   background: white;
-  border: 1px solid #a0a096;
   line-height: 1.125em;
+  @apply rounded-3;
 }
 
 .tileSelected abbr {
@@ -21,4 +21,12 @@
   display: flex;
   height: 44px;
   margin-bottom: 1em;
+}
+
+:global(.react-calendar__navigation__label__labelText) {
+  @apply font-bold;
+}
+
+:global(.react-calendar__month-view__weekdays__weekday abbr) {
+  @apply no-underline;
 }

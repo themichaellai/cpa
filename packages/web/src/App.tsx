@@ -15,7 +15,7 @@ function App() {
   );
 
   return (
-    <Theme accentColor="purple">
+    <Theme accentColor="purple" hasBackground={false}>
       {currentScreen === 'main' ? (
         <MainApp goToSettings={() => setCurrentScreen('settings')} />
       ) : (
@@ -38,26 +38,31 @@ function MainApp({ goToSettings }: { goToSettings: () => void }) {
 
   return (
     <UserWrapper>
-      <ReplicacheWrapper
-        render={() => (
-          <>
-            <Calendar
-              value={selectedDate}
-              onChange={setSelectedDate}
-              activeStartDate={activeStartDate}
-              onActiveStartDateChange={setActiveStartDate}
-            />
-            <BottomSheet
-              selectedDate={selectedDate}
-              setSelectedDate={changeSelectedDate}
-            />
-          </>
-        )}
-      />
-      <div className="mx-5 mt-5 mb-3">
-        <Button variant="ghost" onClick={() => goToSettings()} size="1">
-          ⚙️ Settings
-        </Button>
+      <div className="flex-1 max-w-md m-auto mt-2">
+        <div className="mx-5 mt-5 mb-3">
+          <ReplicacheWrapper
+            render={() => (
+              <>
+                <Calendar
+                  value={selectedDate}
+                  onChange={setSelectedDate}
+                  activeStartDate={activeStartDate}
+                  onActiveStartDateChange={setActiveStartDate}
+                />
+                <BottomSheet
+                  selectedDate={selectedDate}
+                  setSelectedDate={changeSelectedDate}
+                  className="mt-5"
+                />
+              </>
+            )}
+          />
+        </div>
+        <div className="mx-5 mt-5 mb-3">
+          <Button variant="ghost" onClick={() => goToSettings()} size="1">
+            ⚙️ Settings
+          </Button>
+        </div>
       </div>
     </UserWrapper>
   );
