@@ -81,13 +81,15 @@ const setCommentRep = (
 const useSetCommentState = (
   rep: ReturnType<typeof useReplicache>,
   selectedDate: LocalDate,
-  dayRep: Maybe<FrontendDay>,
+  dayRep: Maybe<FrontendDay> | null,
 ): [string, (comment: string) => void] => {
-  const comment = dayRep
-    .chain((d) => Maybe.fromNullable(d.comment))
-    .orDefault('');
+  const comment =
+    dayRep?.chain((d) => Maybe.fromNullable(d.comment)).orDefault('') ?? '';
   const setCommentState = useCallback(
     (comment: string) => {
+      if (dayRep == null) {
+        return;
+      }
       setCommentRep(rep, selectedDate, dayRep, comment);
     },
     [rep, selectedDate, dayRep],
@@ -106,7 +108,7 @@ function BottomSheetContents({
 }) {
   const rep = useReplicache();
 
-  const dayRep: Maybe<FrontendDay> = useSubscribe(
+  const dayRep: Maybe<FrontendDay> | null = useSubscribe(
     rep,
     async (tx): Promise<Maybe<FrontendDay>> => {
       const allDays = (await tx
@@ -120,10 +122,17 @@ function BottomSheetContents({
     {
       // HAX: For some reason `Nothing` is not assignable to
       // `Maybe<FrontendDay>`.
-      default: Maybe.fromNullable<FrontendDay>(null),
+      default: null,
       dependencies: [selectedDate],
     },
   );
+
+  const isToday = useMemo(() => {
+    const now = LocalDate.now();
+    return now.equals(selectedDate);
+  }, [selectedDate]);
+
+  const [comment, setComment] = useSetCommentState(rep, selectedDate, dayRep);
 
   useEffect(() => {
     console.log(
@@ -132,6 +141,11 @@ function BottomSheetContents({
       }),
     );
   }, [dayRep]);
+
+  if (dayRep == null) {
+    return null;
+  }
+
   const setWakeUp = (timeOffsetMillis?: number) => {
     const time: IsoDateTime =
       timeOffsetMillis == null
@@ -190,8 +204,6 @@ function BottomSheetContents({
     });
   };
 
-  const [comment, setComment] = useSetCommentState(rep, selectedDate, dayRep);
-
   const controls: Array<{
     label: string;
     el: React.ReactNode;
@@ -239,10 +251,6 @@ function BottomSheetContents({
     },
   ];
 
-  const isToday = useMemo(() => {
-    const now = LocalDate.now();
-    return now.equals(selectedDate);
-  }, [selectedDate]);
   const goToToday = () => {
     setSelectedDate(LocalDate.now());
   };
