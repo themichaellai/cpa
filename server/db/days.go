@@ -54,7 +54,6 @@ func getOrCreateDay(
 		FROM(Days).
 		WHERE(
 			Days.Date.EQ(sqlite.String(string(date))).
-				AND(Days.ExternalID.EQ(sqlite.String(dayExternalId))).
 				AND(Days.SpaceID.EQ(sqlite.Int64(spaceId))),
 		).Sql()
 
