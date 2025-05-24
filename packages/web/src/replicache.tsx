@@ -87,7 +87,27 @@ const mutators = {
       time,
     }: { id: string; date: IsoDate; poopId: string; time: string },
   ) {
-    const day = (await tx.get(`day/${id}`)) as FrontendDay | null;
+    let day = (await tx.get(`day/${id}`)) as FrontendDay | null;
+    let dayId = id;
+
+    // If the specific day doesn't exist, scan for any day with the same date
+    if (day == null) {
+      const scanner = tx.scan({ prefix: 'day/' });
+      const entries = await scanner.entries().toArray();
+      for (const [_, value] of entries) {
+        const existingDay = value as unknown as FrontendDay;
+        if (
+          existingDay &&
+          typeof existingDay === 'object' &&
+          existingDay.date === date
+        ) {
+          day = existingDay;
+          dayId = existingDay.id;
+          break;
+        }
+      }
+    }
+
     if (day != null && typeof day !== 'object') {
       return;
     }
@@ -103,7 +123,7 @@ const mutators = {
       },
     ];
     const newDay = {
-      id,
+      id: dayId, // Use the found day ID, not the original one
       date,
       coffee: day?.coffee ?? null,
       dinner: day?.dinner ?? null,
@@ -111,7 +131,7 @@ const mutators = {
       poops: newPoops,
       comment: day?.comment ?? null,
     } as const satisfies FrontendDay;
-    await tx.set(`day/${id}`, newDay as unknown as ReadonlyJSONObject);
+    await tx.set(`day/${dayId}`, newDay as unknown as ReadonlyJSONObject);
   },
   async setPoop(
     tx: WriteTransaction,
