@@ -31,6 +31,36 @@ export interface FrontendDay {
   readonly comment?: string | null;
 }
 
+// Helper function to find existing day by date or return the day at the given ID
+const findOrGetDayByDate = async (
+  tx: WriteTransaction,
+  id: string,
+  date: string,
+): Promise<{ day: FrontendDay | null; dayId: string }> => {
+  let day = (await tx.get(`day/${id}`)) as FrontendDay | null;
+  let dayId = id;
+
+  // If the specific day doesn't exist, scan for any day with the same date
+  if (day == null) {
+    const scanner = tx.scan({ prefix: 'day/' });
+    const entries = await scanner.entries().toArray();
+    for (const [_, value] of entries) {
+      const existingDay = value as unknown as FrontendDay;
+      if (
+        existingDay &&
+        typeof existingDay === 'object' &&
+        existingDay.date === date
+      ) {
+        day = existingDay;
+        dayId = existingDay.id;
+        break;
+      }
+    }
+  }
+
+  return { day, dayId };
+};
+
 const mutators = {
   async setDayV2(
     tx: WriteTransaction,
@@ -50,9 +80,10 @@ const mutators = {
       } | null;
     },
   ) {
-    const day = await tx.get(`day/${id}`);
+    const { day, dayId } = await findOrGetDayByDate(tx, id, date);
+
     if (day == null || typeof day !== 'object') {
-      await tx.set(`day/${id}`, {
+      await tx.set(`day/${dayId}`, {
         coffee: null,
         dinner:
           dinner == null
@@ -64,15 +95,15 @@ const mutators = {
         wakeUp,
         poops: [],
         date,
-        id,
+        id: dayId,
         comment: null,
       } satisfies FrontendDay);
     } else {
-      await tx.set(`day/${id}`, {
+      await tx.set(`day/${dayId}`, {
         ...day,
         wakeUp,
         dinner,
-      });
+      } as unknown as ReadonlyJSONObject);
     }
   },
   async setComment(
@@ -87,22 +118,23 @@ const mutators = {
       comment: string | null;
     },
   ) {
-    const day = await tx.get(`day/${id}`);
+    const { day, dayId } = await findOrGetDayByDate(tx, id, date);
+
     if (day == null || typeof day !== 'object') {
-      await tx.set(`day/${id}`, {
+      await tx.set(`day/${dayId}`, {
         coffee: null,
         dinner: null,
         wakeUp: null,
         poops: [],
         date,
-        id,
+        id: dayId,
         comment,
       } satisfies FrontendDay);
     } else {
-      await tx.set(`day/${id}`, {
+      await tx.set(`day/${dayId}`, {
         ...day,
         comment,
-      });
+      } as unknown as ReadonlyJSONObject);
     }
   },
   async addPoop(
@@ -114,26 +146,7 @@ const mutators = {
       time,
     }: { id: string; date: IsoDate; poopId: string; time: string },
   ) {
-    let day = (await tx.get(`day/${id}`)) as FrontendDay | null;
-    let dayId = id;
-
-    // If the specific day doesn't exist, scan for any day with the same date
-    if (day == null) {
-      const scanner = tx.scan({ prefix: 'day/' });
-      const entries = await scanner.entries().toArray();
-      for (const [_, value] of entries) {
-        const existingDay = value as unknown as FrontendDay;
-        if (
-          existingDay &&
-          typeof existingDay === 'object' &&
-          existingDay.date === date
-        ) {
-          day = existingDay;
-          dayId = existingDay.id;
-          break;
-        }
-      }
-    }
+    const { day, dayId } = await findOrGetDayByDate(tx, id, date);
 
     if (day != null && typeof day !== 'object') {
       return;
