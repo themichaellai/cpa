@@ -12,6 +12,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/plaid/go-envvar/envvar"
 	"github.com/sirupsen/logrus"
+	dbpkg "github.com/themichaellai/cpa/server/db"
 	"golang.org/x/net/http2"
 )
 
@@ -87,7 +88,7 @@ func run() error {
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{env.CorsOrigin},
-		AllowMethods: []string{http.MethodPost, http.MethodOptions},
+		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowHeaders: []string{"*"},
 	}))
 
@@ -168,6 +169,27 @@ func run() error {
 			})
 		}
 		return c.JSON(http.StatusOK, resp)
+	})
+
+	e.OPTIONS("/stats", func(c echo.Context) error {
+		return c.NoContent(http.StatusOK)
+	})
+
+	e.GET("/stats", func(c echo.Context) error {
+		stats, err := runInTransaction(c.Request().Context(), db, func(tx *sqlx.Tx) (dbpkg.UsageStats, bool, error) {
+			stats, err := dbpkg.GetGlobalUsageStats(c.Request().Context(), tx)
+			if err != nil {
+				return dbpkg.UsageStats{}, false, err
+			}
+			return stats, false, nil
+		})
+		if err != nil {
+			logError(err)
+			return c.JSON(http.StatusInternalServerError, map[string]interface{}{
+				"message": "error",
+			})
+		}
+		return c.JSON(http.StatusOK, stats)
 	})
 
 	// Start server on 0.0.0.0:8080
