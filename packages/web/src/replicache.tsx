@@ -32,14 +32,13 @@ export interface FrontendDay {
 }
 
 const mutators = {
-  async setDay(
+  async setDayV2(
     tx: WriteTransaction,
     {
       id,
       wakeUp,
       date,
       dinner,
-      comment,
     }: {
       id: string;
       date: string;
@@ -49,7 +48,6 @@ const mutators = {
       dinner: {
         size: 'regular' | 'big' | null;
       } | null;
-      comment: string | null;
     },
   ) {
     const day = await tx.get(`day/${id}`);
@@ -67,13 +65,42 @@ const mutators = {
         poops: [],
         date,
         id,
-        comment,
+        comment: null,
       } satisfies FrontendDay);
     } else {
       await tx.set(`day/${id}`, {
         ...day,
         wakeUp,
         dinner,
+      });
+    }
+  },
+  async setComment(
+    tx: WriteTransaction,
+    {
+      id,
+      date,
+      comment,
+    }: {
+      id: string;
+      date: string;
+      comment: string | null;
+    },
+  ) {
+    const day = await tx.get(`day/${id}`);
+    if (day == null || typeof day !== 'object') {
+      await tx.set(`day/${id}`, {
+        coffee: null,
+        dinner: null,
+        wakeUp: null,
+        poops: [],
+        date,
+        id,
+        comment,
+      } satisfies FrontendDay);
+    } else {
+      await tx.set(`day/${id}`, {
+        ...day,
         comment,
       });
     }

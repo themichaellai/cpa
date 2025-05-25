@@ -330,6 +330,52 @@ func push(
 						return struct{}{}, false, fmt.Errorf("could not set day: %w", err)
 					}
 				}
+			case "setDayV2":
+				{
+					mutationSetDayV2, err := mutations.ParseSetDayV2(log, mutation.Args)
+					if err != nil {
+						return struct{}{}, false, err
+					}
+					log.WithFields(logrus.Fields{
+						"space_id": space.Id,
+						"args":     fmt.Sprintf("%#v", mutationSetDayV2),
+					}).Info("running set day v2 mutation")
+					if err := db.SetDayV2(
+						ctx,
+						tx,
+						space.Id,
+						nextVersion,
+						mutationSetDayV2.Date,
+						mutationSetDayV2.Id,
+						mutationSetDayV2.WakeUpTime,
+						mutationSetDayV2.WakeUpTimeTz,
+						mutationSetDayV2.DinnerSize,
+					); err != nil {
+						return struct{}{}, false, fmt.Errorf("could not set day v2: %w", err)
+					}
+				}
+			case "setComment":
+				{
+					mutationSetComment, err := mutations.ParseSetComment(log, mutation.Args)
+					if err != nil {
+						return struct{}{}, false, err
+					}
+					log.WithFields(logrus.Fields{
+						"space_id": space.Id,
+						"args":     fmt.Sprintf("%#v", mutationSetComment),
+					}).Info("running set comment mutation")
+					if err := db.SetComment(
+						ctx,
+						tx,
+						space.Id,
+						nextVersion,
+						mutationSetComment.Date,
+						mutationSetComment.Id,
+						mutationSetComment.Comment,
+					); err != nil {
+						return struct{}{}, false, fmt.Errorf("could not set comment: %w", err)
+					}
+				}
 			case "addPoop":
 				{
 					mutationAddPoop, err := mutations.ParseAddPoop(log, mutation.Args)

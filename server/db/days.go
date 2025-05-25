@@ -141,6 +141,84 @@ func SetDay(
 	return nil
 }
 
+func SetDayV2(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	spaceId int64,
+	lastModifiedVersion int64,
+	date ParsedDate,
+	dayExternalId string,
+	wakeUpTime *time.Time,
+	wakeUpTimeTz *time.Location,
+	dinnerSize *DinnerSize,
+) error {
+	dayId, err := getOrCreateDay(ctx, tx, spaceId, date, dayExternalId)
+	if err != nil {
+		return fmt.Errorf("SetDayV2: %w", err)
+	}
+	res, err := Days.UPDATE(
+		Days.WakeUpTime,
+		Days.WakeUpTimeTz,
+		Days.LastModifiedVersion,
+		Days.DinnerSize,
+	).
+		SET(
+			timeToSqliteTime(wakeUpTime),
+			sqlite.String(wakeUpTimeTz.String()),
+			sqlite.Int64(lastModifiedVersion),
+			dinnerSize.ToSql(),
+		).
+		WHERE(Days.ID.EQ(sqlite.Int32(dayId))).
+		ExecContext(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("could not update day: %w", err)
+	}
+	rowsChanged, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("could not check rows changed: %w", err)
+	}
+	if rowsChanged == 0 {
+		return fmt.Errorf("no rows changed")
+	}
+	return nil
+}
+
+func SetComment(
+	ctx context.Context,
+	tx *sqlx.Tx,
+	spaceId int64,
+	lastModifiedVersion int64,
+	date ParsedDate,
+	dayExternalId string,
+	comment *string,
+) error {
+	dayId, err := getOrCreateDay(ctx, tx, spaceId, date, dayExternalId)
+	if err != nil {
+		return fmt.Errorf("SetComment: %w", err)
+	}
+	res, err := Days.UPDATE(
+		Days.Comment,
+		Days.LastModifiedVersion,
+	).
+		SET(
+			stringToSqliteString(comment),
+			sqlite.Int64(lastModifiedVersion),
+		).
+		WHERE(Days.ID.EQ(sqlite.Int32(dayId))).
+		ExecContext(ctx, tx)
+	if err != nil {
+		return fmt.Errorf("could not update day comment: %w", err)
+	}
+	rowsChanged, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("could not check rows changed: %w", err)
+	}
+	if rowsChanged == 0 {
+		return fmt.Errorf("no rows changed")
+	}
+	return nil
+}
+
 func AddPoop(
 	ctx context.Context,
 	log *logrus.Logger,
