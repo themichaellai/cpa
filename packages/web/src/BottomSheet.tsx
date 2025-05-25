@@ -57,23 +57,9 @@ const setCommentRep = (
   comment: string,
 ): void => {
   const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
-  const wakeUp = dayRep
-    .chain((d) => Maybe.fromNullable(d.wakeUp?.time))
-    .map<{ time: string } | null>((time) => ({
-      time,
-    }));
-  rep?.mutate.setDay({
+  rep?.mutate.setComment({
     date: selectedDate.toString(),
     id: repId,
-    wakeUp: wakeUp.orDefault(null),
-    dinner: {
-      size: dayRep
-        .chain(
-          (d): Maybe<NonNullable<FrontendDay['dinner']>['size']> =>
-            Maybe.fromNullable(d.dinner?.size),
-        )
-        .orDefault(null),
-    },
     comment,
   });
 };
@@ -160,7 +146,7 @@ function BottomSheetContents({
             ZoneId.systemDefault(),
           ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime);
     const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
-    rep?.mutate.setDay({
+    rep?.mutate.setDayV2({
       date: selectedDate.toString(),
       id: repId,
       wakeUp: {
@@ -174,9 +160,6 @@ function BottomSheetContents({
           )
           .orDefault(null),
       },
-      comment: dayRep
-        .chain((d): Maybe<string | null> => Maybe.fromNullable(d.comment))
-        .orDefault(null),
     });
   };
 
@@ -191,16 +174,13 @@ function BottomSheetContents({
       .map<{ time: string } | null>((time) => ({
         time,
       }));
-    rep?.mutate.setDay({
+    rep?.mutate.setDayV2({
       date: selectedDate.toString(),
       id: repId,
       wakeUp: wakeUp.orDefault(null),
       dinner: {
         size,
       },
-      comment: dayRep
-        .chain((d): Maybe<string | null> => Maybe.fromNullable(d.comment))
-        .orDefault(null),
     });
   };
 
