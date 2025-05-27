@@ -328,6 +328,15 @@ function NotesField({
             setDirtyState(null);
           }
         }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (dirtyState?.showingSave) {
+              setNotes(dirtyState.value);
+              setDirtyState(null);
+            }
+          }
+        }}
       />
       <div className="flex gap-1">{buttons}</div>
     </form>
