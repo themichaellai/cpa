@@ -16,6 +16,7 @@ import TimePicker from './components/TimePicker';
 import { IsoDateTime } from './time';
 import Pooper from './Pooper';
 import { FrontendDay, useReplicache } from './replicache';
+import { isMobileDevice } from './utils/device';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 function BottomSheet({
@@ -273,6 +274,8 @@ function NotesField({
     showingSave: boolean;
   } | null>(null);
 
+  const isMobile = useMemo(() => isMobileDevice(), []);
+
   const buttons =
     dirtyState == null || !dirtyState.showingSave ? null : (
       <>
@@ -329,11 +332,19 @@ function NotesField({
           }
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            if (dirtyState?.showingSave) {
-              setNotes(dirtyState.value);
-              setDirtyState(null);
+          if (e.key === 'Enter') {
+            if (isMobile) {
+              // On mobile: Enter creates newline, only submit via button
+              return;
+            } else {
+              // On desktop: Enter submits (unless Shift+Enter for newline)
+              if (!e.shiftKey) {
+                e.preventDefault();
+                if (dirtyState?.showingSave) {
+                  setNotes(dirtyState.value);
+                  setDirtyState(null);
+                }
+              }
             }
           }
         }}
