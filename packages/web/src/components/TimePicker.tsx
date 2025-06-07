@@ -3,6 +3,7 @@ import { Button } from '@radix-ui/themes';
 import { Either } from 'purify-ts/Either';
 import { convert, ZoneId } from '@js-joda/core';
 import { formatTimeForDisplay, IsoDateTime, parseDateTime } from '../time';
+import { isIosSafari } from '../utils/device';
 
 const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
   const parsed = parseDateTime(dt).map((dt) =>
@@ -35,16 +36,11 @@ const TimePicker = ({
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const userAgent = window.navigator.userAgent;
-  const isIos = !!userAgent.match(/iPad/i) || !!userAgent.match(/iPhone/i);
-  const isWebkit = !!userAgent.match(/WebKit/i);
-  const isIosSafari = isIos && isWebkit && !userAgent.match(/CriOS/i);
-
   const onTimeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.valueAsNumber);
   };
 
-  if (isIosSafari) {
+  if (isIosSafari()) {
     return (
       <input
         type="time"
