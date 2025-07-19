@@ -257,7 +257,7 @@ const hashText = async (text: string): Promise<string> => {
   return hashHex;
 };
 
-const REPLICACHE_ENDPOINT = import.meta.env.VITE_REPLICACHE_ENDPOINT;
+const REPLICACHE_ENDPOINT = process.env.NEXT_PUBLIC_REPLICACHE_ENDPOINT;
 
 const newRep = ({
   userKey,
