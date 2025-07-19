@@ -22,11 +22,3 @@
   height: 44px;
   margin-bottom: 1em;
 }
-
-:global(.react-calendar__navigation__label__labelText) {
-  @apply font-bold;
-}
-
-:global(.react-calendar__month-view__weekdays__weekday abbr) {
-  @apply no-underline;
-}
