@@ -30,7 +30,7 @@
         "react": "^19.0.0",
         "react-calendar": "5.0.0",
         "react-dom": "^19.0.0",
-        "replicache": "^15.0.1",
+        "replicache": "^15.3.0",
         "replicache-react": "^5.0.1",
         "zod": "3.22.4",
       },
@@ -774,7 +774,7 @@
 
     "regenerator-runtime": ["regenerator-runtime@0.14.1", "", {}, "sha512-dYnhHh0nJoMfnkZs6GmmhFknAGRrLznOu5nc9ML+EJxGvrx6H7teuevqVqCuPcPK//3eDrrjQhehXVx9cnkGdw=="],
 
-    "replicache": ["replicache@15.0.1", "", { "dependencies": { "@badrap/valita": "^0.3.0", "@rocicorp/lock": "^1.0.4", "@rocicorp/logger": "^5.2.2", "@rocicorp/resolver": "^1.0.2" }, "bin": { "replicache": "out/cli.cjs" } }, "sha512-I7HK6h2eT2QNxO4mwQFDqbuxhvCQgSlU4QuwfN9dqA6EKnO73VYiKB676r36N3q5W7L+htLgAcrSsrX+JPsRlQ=="],
+    "replicache": ["replicache@15.3.0", "", { "dependencies": { "@badrap/valita": "^0.3.0", "@rocicorp/lock": "^1.0.4", "@rocicorp/logger": "^5.2.2", "@rocicorp/resolver": "^1.0.2" }, "bin": { "replicache": "out/cli.cjs" } }, "sha512-XE9NbpG5bVuJNcj61vzbZBwesNx9q51l6/o0J8wT4v1YZhKoqj9GExwc3pLUYSi/AyrQtkX44wOyrSMLHzFIaA=="],
 
     "replicache-react": ["replicache-react@5.0.1", "", { "peerDependencies": { "react": ">=16.0 <19.0", "react-dom": ">=16.0 <19.0" } }, "sha512-xwiVdoANIX9oagqK8sT/txx9ltfEmkKgbJivdVvyz13bj5PAT+b8o9xuMtY4X1bJgu+9mn04muWPKtPv9MV/ZA=="],
 

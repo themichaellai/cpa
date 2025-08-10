@@ -4,8 +4,6 @@ import { ReadonlyJSONObject, Replicache, WriteTransaction } from 'replicache';
 import { useUserToken } from './store/user';
 import { IsoDate } from './time';
 
-const REPLICACHE_LICENSE = 'lbf96f9411a604ca4814d875587aa4826';
-
 interface Poop {
   readonly id: string;
   readonly time: string;
@@ -268,7 +266,6 @@ const newRep = ({
 }) => {
   return new Replicache({
     name: `cpa-${hashedKey}`,
-    licenseKey: REPLICACHE_LICENSE,
     pushURL: `${REPLICACHE_ENDPOINT}/push`,
     pullURL: `${REPLICACHE_ENDPOINT}/pull`,
     auth: `Bearer ${userKey}`,
