@@ -28,7 +28,7 @@
     "react": "^19.0.0",
     "react-calendar": "5.0.0",
     "react-dom": "^19.0.0",
-    "replicache": "^15.0.1",
+    "replicache": "^15.3.0",
     "replicache-react": "^5.0.1",
     "zod": "3.22.4"
   },
