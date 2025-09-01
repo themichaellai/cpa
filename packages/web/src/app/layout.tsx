@@ -19,6 +19,8 @@ export const viewport: Viewport = {
   initialScale: 1.0,
 };
 
+const REPLICACHE_ENDPOINT = process.env.NEXT_PUBLIC_REPLICACHE_ENDPOINT;
+
 export default function RootLayout({
   children,
 }: {
@@ -27,16 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link
-          rel="preconnect"
-          href="https://replicache-license.herokuapp.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preconnect"
-          href="https://celinespoopapp.fly.dev"
-          crossOrigin="anonymous"
-        />
+        {REPLICACHE_ENDPOINT == null ? null : (
+          <link
+            rel="preconnect"
+            href={REPLICACHE_ENDPOINT}
+            crossOrigin="anonymous"
+          />
+        )}
       </head>
       <body>
         <div id="root">{children}</div>
