@@ -19,7 +19,7 @@ function App() {
       {currentScreen === 'main' ? (
         <MainApp goToSettings={() => setCurrentScreen('settings')} />
       ) : (
-        <Settings />
+        <Settings goBack={() => setCurrentScreen('main')} />
       )}
     </Theme>
   );
@@ -68,10 +68,10 @@ function MainApp({ goToSettings }: { goToSettings: () => void }) {
   );
 }
 
-function Settings() {
+function Settings({ goBack }: { goBack: () => void }) {
   return (
     <UserWrapper>
-      <SettingsScreen />
+      <SettingsScreen goBack={goBack} />
     </UserWrapper>
   );
 }

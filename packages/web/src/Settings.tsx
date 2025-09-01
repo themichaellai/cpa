@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 import { useUserContext } from './store/user';
 
-function SettingsScreen() {
+function SettingsScreen({ goBack }: { goBack: () => void }) {
   const { passphrase, setPassphrase } = useUserContext();
 
   const [newPassphrase, setNewPassphrase] = useState<string>(passphrase);
@@ -20,8 +20,12 @@ function SettingsScreen() {
   };
 
   return (
-    <div className="max-w-screen-md m-auto mt-4 mx-4">
-      <Heading as="h1" className="mb-1">
+    <div className="max-w-screen-md m-auto mt-4 mx-7">
+      <Heading
+        as="h1"
+        className="mb-1.5 before:content-['‹'] before:w-4 -ml-4 flex cursor-pointer"
+        onClick={goBack}
+      >
         Settings
       </Heading>
       <TextArea
