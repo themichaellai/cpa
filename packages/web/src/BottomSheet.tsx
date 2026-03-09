@@ -17,7 +17,7 @@ import { IsoDateTime } from './time';
 import Pooper from './Pooper';
 import { FrontendDay, useReplicache } from './replicache';
 import { isMobileDevice } from './utils/device';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 function BottomSheet({
   selectedDate,
@@ -114,10 +114,8 @@ function BottomSheetContents({
     },
   );
 
-  const isToday = useMemo(() => {
-    const now = LocalDate.now();
-    return now.equals(selectedDate);
-  }, [selectedDate]);
+  const currentDate = useCurrentDate();
+  const isToday = currentDate.equals(selectedDate);
 
   const [comment, setComment] = useSetCommentState(rep, selectedDate, dayRep);
 
@@ -352,6 +350,50 @@ function NotesField({
       <div className="flex gap-1">{buttons}</div>
     </form>
   );
+}
+
+function msUntilMidnight(): number {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.getTime() - now.getTime();
+}
+
+function useCurrentDate(): LocalDate {
+  const [currentDate, setCurrentDate] = useState(() => LocalDate.now());
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const check = () => {
+      const now = LocalDate.now();
+      setCurrentDate((prev) => (prev.equals(now) ? prev : now));
+    };
+
+    const scheduleMidnight = () => {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        check();
+        scheduleMidnight();
+      }, msUntilMidnight() + 100); // small buffer past midnight
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        check();
+        scheduleMidnight();
+      }
+    };
+
+    scheduleMidnight();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearTimeout(timeoutRef.current);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
+  return currentDate;
 }
 
 export default BottomSheet;
