@@ -7,8 +7,7 @@ body {
 }
 
 .react-calendar {
-  width: 350px;
-  max-width: 100%;
+  width: 100%;
   background: white;
   border: 1px solid color(display-p3 0.86 0.86 0.88);
   font-family: Arial, Helvetica, sans-serif;
