@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { Button, Flex } from '@radix-ui/themes';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 interface Option<T> {
   label: string;
@@ -14,30 +14,57 @@ const SegmentedButton = <T,>({
   options: Array<Option<T>>;
   onSelect: (option: T) => void;
 }) => {
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const [indicator, setIndicator] = useState<{
+    left: number;
+    width: number;
+  } | null>(null);
+
+  const selectedIndex = options.findIndex((opt) => opt.value === selected);
+
+  useLayoutEffect(() => {
+    if (selectedIndex < 0) {
+      setIndicator(null);
+      return;
+    }
+    const el = buttonRefs.current[selectedIndex];
+    if (!el) return;
+    setIndicator({ left: el.offsetLeft, width: el.offsetWidth });
+  }, [selectedIndex, options.length]);
+
   return (
-    <Flex gap="1" className="border border-purple-6 rounded-4 p-1">
-      {options.map((opt) => (
-        <Button
+    <div className="relative inline-flex gap-1 rounded-4 p-1 shadow-[inset_0_0_0_1px_var(--gray-a5)]">
+      {indicator && (
+        <div
+          aria-hidden
+          className="absolute left-0 top-1 bottom-1 rounded-2 bg-purple-3 shadow-[inset_0_0_0_0.5px_var(--gray-a5)] transition-[transform,width] duration-200 ease-[cubic-bezier(0.645,0.045,0.355,1)] motion-reduce:transition-none"
+          style={{
+            width: `${indicator.width}px`,
+            transform: `translateX(${indicator.left}px)`,
+          }}
+        />
+      )}
+      {options.map((opt, i) => (
+        <button
           key={opt.label}
-          variant="ghost"
-          color={selected === opt.value ? 'purple' : 'gray'}
-          className={clsx([
-            'm-1',
-            'py-1',
-            'px-3',
-            ...(selected === opt.value
-              ? ['border', 'border-purple-6', 'bg-purple-3']
-              : ['border', 'border-transparent']),
-            'rounded-3',
-          ])}
+          ref={(el) => {
+            buttonRefs.current[i] = el;
+          }}
+          type="button"
+          className={clsx(
+            'relative rounded-2 px-3 py-1 text-[14px] leading-[20px] font-medium cursor-pointer transition-colors',
+            selected === opt.value
+              ? 'text-purple-11'
+              : 'text-gray-11 hover:bg-gray-3',
+          )}
           onClick={() => {
             onSelect(opt.value);
           }}
         >
           {opt.label}
-        </Button>
+        </button>
       ))}
-    </Flex>
+    </div>
   );
 };
 
