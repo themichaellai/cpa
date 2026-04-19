@@ -1,10 +1,10 @@
 'use client';
 
-import React from 'react';
-import dynamic from 'next/dynamic';
-
-const App = dynamic(() => import('../../App'), { ssr: false });
+import { useEffect, useState } from 'react';
+import App from '../../App';
 
 export function ClientOnly() {
-  return <App />;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  return mounted ? <App /> : null;
 }

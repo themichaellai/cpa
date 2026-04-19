@@ -1,31 +1,23 @@
 import { useState } from 'react';
 import { LocalDate } from '@js-joda/core';
 import { Button, Theme } from '@radix-ui/themes';
+import Link from 'next/link';
 
 import { UserWrapper } from './store/user';
 import { ReplicacheWrapper } from './replicache';
 import Calendar from './Calendar';
 import BottomSheet from './BottomSheet';
 import './App.module.css';
-import SettingsScreen from './Settings';
 
 function App() {
-  const [currentScreen, setCurrentScreen] = useState<'main' | 'settings'>(
-    'main',
-  );
-
   return (
     <Theme accentColor="purple" hasBackground={false}>
-      {currentScreen === 'main' ? (
-        <MainApp goToSettings={() => setCurrentScreen('settings')} />
-      ) : (
-        <Settings goBack={() => setCurrentScreen('main')} />
-      )}
+      <MainApp />
     </Theme>
   );
 }
 
-function MainApp({ goToSettings }: { goToSettings: () => void }) {
+function MainApp() {
   const [selectedDate, setSelectedDate] = useState<LocalDate>(LocalDate.now());
   const [activeStartDate, setActiveStartDate] = useState<LocalDate | null>(() =>
     selectedDate.withDayOfMonth(1),
@@ -59,19 +51,11 @@ function MainApp({ goToSettings }: { goToSettings: () => void }) {
           />
         </div>
         <div className="mx-5 mt-5 mb-3">
-          <Button variant="ghost" onClick={() => goToSettings()} size="1">
-            ⚙️ Settings
+          <Button asChild variant="ghost" size="1">
+            <Link href="/settings">⚙️ Settings</Link>
           </Button>
         </div>
       </div>
-    </UserWrapper>
-  );
-}
-
-function Settings({ goBack }: { goBack: () => void }) {
-  return (
-    <UserWrapper>
-      <SettingsScreen goBack={goBack} />
     </UserWrapper>
   );
 }
