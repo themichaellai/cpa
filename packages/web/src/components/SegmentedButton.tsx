@@ -37,10 +37,10 @@ const SegmentedButton = <T,>({
       {indicator && (
         <div
           aria-hidden
-          className="absolute left-0 top-1 bottom-1 rounded-2 bg-purple-3 shadow-[inset_0_0_0_0.5px_var(--gray-a5)] transition-[transform,width] duration-200 ease-[cubic-bezier(0.645,0.045,0.355,1)] motion-reduce:transition-none"
+          className="absolute top-1 bottom-1 rounded-2 bg-purple-3 shadow-[inset_0_0_0_0.5px_var(--gray-a5)] transition-[left,width] duration-200 ease-[cubic-bezier(0.645,0.045,0.355,1)] motion-reduce:transition-none"
           style={{
             width: `${indicator.width}px`,
-            transform: `translateX(${indicator.left}px)`,
+            left: `${indicator.left}px`,
           }}
         />
       )}
@@ -52,10 +52,10 @@ const SegmentedButton = <T,>({
           }}
           type="button"
           className={clsx(
-            'relative rounded-2 px-3 py-1 text-[14px] leading-[20px] font-medium cursor-pointer transition-colors',
+            'relative rounded-2 px-3 py-1 text-[14px] leading-[20px] font-medium cursor-pointer transition-colors duration-200 motion-reduce:transition-none',
             selected === opt.value
               ? 'text-purple-11'
-              : 'text-gray-11 hover:bg-gray-3',
+              : 'text-gray-11 [@media(hover:hover)]:hover:bg-gray-3',
           )}
           onClick={() => {
             onSelect(opt.value);
