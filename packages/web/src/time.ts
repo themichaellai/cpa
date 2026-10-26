@@ -1,5 +1,6 @@
 import '@js-joda/timezone';
-import { ZonedDateTime, convert, ZoneId } from '@js-joda/core';
+import { ZonedDateTime, convert, LocalDate, ZoneId } from '@js-joda/core';
+import { useEffect, useRef, useState } from 'react';
 import { Either } from 'purify-ts/Either';
 
 export type IsoDateTime = string & { __type: 'isoDateTime' };
@@ -28,3 +29,47 @@ export const formatTimeForDisplay = (
     });
   });
 };
+
+function msUntilMidnight(): number {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight.getTime() - now.getTime();
+}
+
+export function useCurrentDate(): LocalDate {
+  const [currentDate, setCurrentDate] = useState(() => LocalDate.now());
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const check = () => {
+      const now = LocalDate.now();
+      setCurrentDate((prev) => (prev.equals(now) ? prev : now));
+    };
+
+    const scheduleMidnight = () => {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        check();
+        scheduleMidnight();
+      }, msUntilMidnight() + 100); // small buffer past midnight
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        check();
+        scheduleMidnight();
+      }
+    };
+
+    scheduleMidnight();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      clearTimeout(timeoutRef.current);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
+
+  return currentDate;
+}

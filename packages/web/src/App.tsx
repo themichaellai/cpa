@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { UserWrapper } from './store/user';
 import { ReplicacheWrapper } from './replicache';
 import Calendar from './Calendar';
+import { useCurrentDate } from './time';
 import BottomSheet from './BottomSheet';
 import './App.module.css';
 
@@ -18,8 +19,9 @@ function App() {
 }
 
 function MainApp() {
-  const [selectedDate, setSelectedDate] = useState<LocalDate>(LocalDate.now());
-  const [activeStartDate, setActiveStartDate] = useState<LocalDate | null>(() =>
+  const today = useCurrentDate();
+  const [selectedDate, setSelectedDate] = useState<LocalDate>(today);
+  const [activeStartDate, setActiveStartDate] = useState<LocalDate>(() =>
     selectedDate.withDayOfMonth(1),
   );
 
@@ -37,15 +39,12 @@ function MainApp() {
               <>
                 <Calendar
                   value={selectedDate}
-                  onChange={setSelectedDate}
+                  onChange={changeSelectedDate}
+                  today={today}
                   activeStartDate={activeStartDate}
                   onActiveStartDateChange={setActiveStartDate}
                 />
-                <BottomSheet
-                  selectedDate={selectedDate}
-                  setSelectedDate={changeSelectedDate}
-                  className="mt-5"
-                />
+                <BottomSheet selectedDate={selectedDate} className="mt-5" />
               </>
             )}
           />

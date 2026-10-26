@@ -17,15 +17,13 @@ import { IsoDateTime } from './time';
 import Pooper from './Pooper';
 import { FrontendDay, useReplicache } from './replicache';
 import { isMobileDevice } from './utils/device';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 function BottomSheet({
   selectedDate,
-  setSelectedDate,
   className,
 }: {
   selectedDate: LocalDate | null;
-  setSelectedDate: (date: LocalDate) => void;
   className?: string;
 }) {
   const rep = useReplicache();
@@ -36,7 +34,6 @@ function BottomSheet({
     <BottomSheetContents
       key={selectedDate.toString()}
       selectedDate={selectedDate}
-      setSelectedDate={setSelectedDate}
       className={className}
     />
   );
@@ -86,11 +83,9 @@ const useSetCommentState = (
 
 function BottomSheetContents({
   selectedDate,
-  setSelectedDate,
   className,
 }: {
   selectedDate: LocalDate;
-  setSelectedDate: (date: LocalDate) => void;
   className?: string;
 }) {
   const rep = useReplicache();
@@ -113,9 +108,6 @@ function BottomSheetContents({
       dependencies: [selectedDate],
     },
   );
-
-  const currentDate = useCurrentDate();
-  const isToday = currentDate.equals(selectedDate);
 
   const [comment, setComment] = useSetCommentState(rep, selectedDate, dayRep);
 
@@ -230,22 +222,11 @@ function BottomSheetContents({
     },
   ];
 
-  const goToToday = () => {
-    setSelectedDate(LocalDate.now());
-  };
-
   return (
     <div className={className}>
-      <div className="flex items-center gap-3">
-        <h1 className={clsx('text-xl', 'font-bold')}>
-          {localDateToDisplay(selectedDate)}
-        </h1>
-        {isToday ? null : (
-          <Button variant="soft" size="1" onClick={goToToday}>
-            &#x2934; Today
-          </Button>
-        )}
-      </div>
+      <h1 className={clsx('text-xl', 'font-bold')}>
+        {localDateToDisplay(selectedDate)}
+      </h1>
       {controls.map(({ label, labelAlignStart, el }) => (
         <Card key={label} className={clsx('mt-5')}>
           <Flex align={labelAlignStart ? 'start' : 'center'}>
@@ -350,50 +331,6 @@ function NotesField({
       <div className="flex gap-1">{buttons}</div>
     </form>
   );
-}
-
-function msUntilMidnight(): number {
-  const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(24, 0, 0, 0);
-  return midnight.getTime() - now.getTime();
-}
-
-function useCurrentDate(): LocalDate {
-  const [currentDate, setCurrentDate] = useState(() => LocalDate.now());
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    const check = () => {
-      const now = LocalDate.now();
-      setCurrentDate((prev) => (prev.equals(now) ? prev : now));
-    };
-
-    const scheduleMidnight = () => {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
-        check();
-        scheduleMidnight();
-      }, msUntilMidnight() + 100); // small buffer past midnight
-    };
-
-    const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        check();
-        scheduleMidnight();
-      }
-    };
-
-    scheduleMidnight();
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      clearTimeout(timeoutRef.current);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-    };
-  }, []);
-
-  return currentDate;
 }
 
 export default BottomSheet;
