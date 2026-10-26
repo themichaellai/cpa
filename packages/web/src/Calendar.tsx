@@ -78,7 +78,11 @@ function Calendar({
         tileContent={({ date }) => {
           const d = toLocalDate(date);
           return d.isBefore(today) && isPoopless(days.get(d.toString())) ? (
-            <span className="calendar-marker" aria-label="No poops" />
+            <span
+              className="calendar-marker"
+              role="img"
+              aria-label="No poops"
+            />
           ) : null;
         }}
       />
