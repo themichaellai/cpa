@@ -34,7 +34,7 @@ function Calendar({
   return (
     <div className="calendar">
       <div className="flex items-center pl-2">
-        <div className="flex flex-1 items-center">
+        <div className="relative flex flex-1 items-center">
           <h2 className="text-[18px] font-bold">{monthLabel}</h2>
           <SyncIndicator />
         </div>
