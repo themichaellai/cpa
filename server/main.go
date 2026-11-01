@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	// Embed the IANA time zone database so time.LoadLocation does not depend on
+	// the tzdata package being installed in the debian:bookworm base image.
+	_ "time/tzdata"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
