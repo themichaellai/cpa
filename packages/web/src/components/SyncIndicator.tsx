@@ -1,61 +1,35 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useReducer, useRef, useState } from 'react';
 import { Text } from '@radix-ui/themes';
 import clsx from 'clsx';
 
 import { useSyncStatus, type SyncStatus } from '../replicache';
-
-type Kind = 'pending' | 'offline' | 'recovered';
-
-// A normal push finishes in a few hundred ms; don't show anything for those.
-const SHOW_DELAY_MS = 1000;
-// Replicache stays "offline" after any failed request (e.g. a blip or the
-// device waking) until the next one succeeds, so the next edit's push usually
-// clears it within ms. Wait before treating it as really offline.
-const OFFLINE_DELAY_MS = 1500;
-// Once shown, stay up at least this long so it never flashes on and off.
-const MIN_VISIBLE_MS = 800;
-// After coming back online, briefly confirm everything synced.
-const RECOVERED_MS = 1500;
+import {
+  initialState,
+  reduce,
+  timeoutFor,
+  view,
+  type Kind,
+} from './syncIndicatorMachine';
 
 const useIndicatorState = (status: SyncStatus) => {
-  const [visible, setVisible] = useState(false);
-  // Keep the last kind while fading out so the dot doesn't change colour.
-  const [kind, setKind] = useState<Kind>('pending');
-  const shownAt = useRef(0);
-  const wasOffline = useRef(false);
+  const [state, dispatch] = useReducer(reduce, initialState);
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const show = (k: Kind) => {
-      if (!visible) shownAt.current = Date.now();
-      setKind(k);
-      setVisible(true);
-    };
+    dispatch({ type: 'status', status, now: Date.now() });
+  }, [status]);
 
-    if (status === 'offline') {
-      const goOffline = () => {
-        wasOffline.current = true;
-        show('offline');
-      };
-      if (visible && kind === 'offline') goOffline();
-      else timer = setTimeout(goOffline, OFFLINE_DELAY_MS);
-    } else if (status === 'pending') {
-      if (visible) show('pending');
-      else timer = setTimeout(() => show('pending'), SHOW_DELAY_MS);
-    } else if (wasOffline.current) {
-      wasOffline.current = false;
-      show('recovered');
-    } else if (visible) {
-      const hold =
-        kind === 'recovered'
-          ? RECOVERED_MS
-          : MIN_VISIBLE_MS - (Date.now() - shownAt.current);
-      timer = setTimeout(() => setVisible(false), Math.max(0, hold));
-    }
+  // One timer per state; a new state object replaces it.
+  useEffect(() => {
+    const ms = timeoutFor(state, Date.now());
+    if (ms == null) return;
+    const timer = setTimeout(
+      () => dispatch({ type: 'timeout', now: Date.now() }),
+      ms,
+    );
     return () => clearTimeout(timer);
-  }, [status, visible, kind]);
+  }, [state]);
 
-  return { visible, kind };
+  return view(state);
 };
 
 // No change counts: they can lag behind and would read "0 changes" while the
