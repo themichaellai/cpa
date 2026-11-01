@@ -16,7 +16,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@js-joda/core": "^5.6.1",
-        "@js-joda/locale_en": "^4.8.11",
         "@radix-ui/themes": "^2.0.3",
         "@scure/bip39": "1.2.2",
         "babel-plugin-react-compiler": "^19.0.0-beta-55955c9-20241229",
@@ -245,10 +244,6 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.22", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-Wf963MzWtA2sjrNt+g18IAln9lKnlRp+K2eH4jjIoF1wYeq3aMREpG09xhlhdzS0EjwU7qmUJYangWa+151vZw=="],
 
     "@js-joda/core": ["@js-joda/core@5.6.1", "", {}, "sha512-Xla/d7ZMMR6+zRd6lTio0wRZECfcfFJP7GGe9A9L4tDOlD5CX4YcZ4YZle9w58bBYzssojVapI84RraKWDQZRg=="],
-
-    "@js-joda/locale_en": ["@js-joda/locale_en@4.8.11", "", { "peerDependencies": { "@js-joda/core": ">=3.2.0", "@js-joda/timezone": "^2.3.0" } }, "sha512-2Swd1E/BTeIMQeTHdL27lhLYynB5r0xUTQFs/kAntO5FY0PgMyGAlDIffpG8jHzx4H0BOanICrdYCjZ5XbYDDw=="],
-
-    "@js-joda/timezone": ["@js-joda/timezone@2.18.2", "", { "peerDependencies": { "@js-joda/core": ">=1.11.0" } }, "sha512-4binOw4XBO4H6nbw0tPg1IOIrf3MF7gPeXkNiPuK1QAHPaBC0YsvtRt8BiJTqhEaBqh/Kbqp6MChlnbJ8dxQ5Q=="],
 
     "@next/env": ["@next/env@15.5.7", "", {}, "sha512-4h6Y2NyEkIEN7Z8YxkA27pq6zTkS09bUSYC0xjd0NpwFxjnIKeZEeH591o5WECSmjpUhLn3H2QLJcDye3Uzcvg=="],
 
