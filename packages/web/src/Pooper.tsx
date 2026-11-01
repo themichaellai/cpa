@@ -1,17 +1,11 @@
 import { useCallback, useMemo } from 'react';
-import {
-  DateTimeFormatter,
-  LocalDate,
-  LocalTime,
-  ZoneId,
-  ZonedDateTime,
-} from '@js-joda/core';
+import { LocalDate } from '@js-joda/core';
 import { Button, Card, ContextMenu, Flex, Switch } from '@radix-ui/themes';
 import clsx from 'clsx';
 import { useSubscribe } from 'replicache-react';
 import { Maybe, Nothing } from 'purify-ts/Maybe';
 
-import { IsoDate, IsoDateTime, now } from './time';
+import { IsoDate, IsoDateTime, now, zonedAt } from './time';
 import { useReplicache, FrontendDay } from './replicache';
 import TimePicker from './components/TimePicker';
 
@@ -68,11 +62,11 @@ const Pooper: React.FC<{
 
         const changeTime = (timeOffsetMillis: number) => {
           dayRep.ifJust((d) => {
-            const newtime: IsoDateTime = ZonedDateTime.of(
-              date,
-              LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
-              ZoneId.systemDefault(),
-            ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime;
+            const newtime = zonedAt(date, timeOffsetMillis / 1000);
+            if (newtime == null) {
+              // Cleared or out-of-range time input; don't send a mutation.
+              return;
+            }
             rep?.mutate.setPoop({
               id: d.id,
               date: d.date as IsoDate,

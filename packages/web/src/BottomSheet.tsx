@@ -1,11 +1,4 @@
-import {
-  convert,
-  DateTimeFormatter,
-  LocalDate,
-  LocalTime,
-  ZonedDateTime,
-  ZoneId,
-} from '@js-joda/core';
+import { convert, LocalDate } from '@js-joda/core';
 import clsx from 'clsx';
 import { Button, Card, Flex } from '@radix-ui/themes';
 import { Maybe } from 'purify-ts/Maybe';
@@ -13,7 +6,7 @@ import { useSubscribe } from 'replicache-react';
 
 import SegmentedButton from './components/SegmentedButton';
 import TimePicker from './components/TimePicker';
-import { IsoDateTime } from './time';
+import { IsoDateTime, zonedAt, zonedNowOn } from './time';
 import Pooper from './Pooper';
 import { FrontendDay, useReplicache } from './replicache';
 import { isMobileDevice } from './utils/device';
@@ -124,18 +117,14 @@ function BottomSheetContents({
   }
 
   const setWakeUp = (timeOffsetMillis?: number) => {
-    const time: IsoDateTime =
+    const time: IsoDateTime | null =
       timeOffsetMillis == null
-        ? (ZonedDateTime.of(
-            selectedDate,
-            LocalTime.now(),
-            ZoneId.systemDefault(),
-          ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime)
-        : (ZonedDateTime.of(
-            selectedDate,
-            LocalTime.ofSecondOfDay(Math.floor(timeOffsetMillis / 1000)),
-            ZoneId.systemDefault(),
-          ).format(DateTimeFormatter.ISO_ZONED_DATE_TIME) as IsoDateTime);
+        ? zonedNowOn(selectedDate)
+        : zonedAt(selectedDate, timeOffsetMillis / 1000);
+    if (time == null) {
+      // Cleared or out-of-range time input; don't send a mutation.
+      return;
+    }
     const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
     rep?.mutate.setDayV2({
       date: selectedDate.toString(),

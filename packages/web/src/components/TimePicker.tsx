@@ -1,23 +1,18 @@
 import { useMemo, useRef } from 'react';
 import { Button } from '@radix-ui/themes';
 import { Either } from 'purify-ts/Either';
-import { convert, ZoneId } from '@js-joda/core';
 import { formatTimeForDisplay, IsoDateTime, parseDateTime } from '../time';
 import { isIosSafari } from '../utils/device';
 
-const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> => {
-  const parsed = parseDateTime(dt).map((dt) =>
-    dt.withZoneSameLocal(ZoneId.SYSTEM),
-  );
-  // format as 24 hour time
-  return parsed.map((dateTime) => {
-    return convert(dateTime).toDate().toLocaleTimeString('en-US', {
+// Wall-clock time of the string as 24-hour "HH:mm" for <input type="time">.
+const formatTimeForInput = (dt: IsoDateTime): Either<Error, string> =>
+  parseDateTime(dt).map((d) =>
+    d.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-    });
-  });
-};
+    }),
+  );
 
 const TimePicker = ({
   time,
