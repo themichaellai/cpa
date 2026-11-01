@@ -4,9 +4,9 @@ import clsx from 'clsx';
 
 import { useSyncStatus, type SyncStatus } from '../replicache';
 import {
+  deadlineOf,
   initialState,
   reduce,
-  timeoutFor,
   view,
   type Kind,
 } from './syncIndicatorMachine';
@@ -18,13 +18,16 @@ const useIndicatorState = (status: SyncStatus) => {
     dispatch({ type: 'status', status, now: Date.now() });
   }, [status]);
 
-  // One timer per state; a new state object replaces it.
+  // Wake the machine at the state's deadline. Ticks are safe at any time (the
+  // reducer checks deadlines itself), so a stale timer is harmless. `now` is
+  // at least the deadline in case a timer fires a millisecond early, which
+  // would otherwise leave the state unchanged and nothing rescheduled.
   useEffect(() => {
-    const ms = timeoutFor(state, Date.now());
-    if (ms == null) return;
+    const deadline = deadlineOf(state);
+    if (deadline == null) return;
     const timer = setTimeout(
-      () => dispatch({ type: 'timeout', now: Date.now() }),
-      ms,
+      () => dispatch({ type: 'tick', now: Math.max(Date.now(), deadline) }),
+      Math.max(0, deadline - Date.now()),
     );
     return () => clearTimeout(timer);
   }, [state]);

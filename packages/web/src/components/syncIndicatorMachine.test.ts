@@ -2,11 +2,11 @@ import { describe, expect, test } from 'bun:test';
 
 import type { SyncStatus } from '../replicache';
 import {
+  deadlineOf,
   initialState,
   type Kind,
   reduce,
   type State,
-  timeoutFor,
   view,
 } from './syncIndicatorMachine';
 
@@ -14,47 +14,46 @@ type Shown = Kind | 'hidden';
 
 /**
  * Runs the machine against a fake clock: applies each [time, status] step and
- * fires timeouts as they come due (the way SyncIndicator's effects do). On a
- * same-millisecond tie the status step goes first; in React either could, so
- * tests avoid ties.
+ * ticks at each state's deadline (the way SyncIndicator's effects do).
+ * `extraTicks` adds ticks at arbitrary times, e.g. stale or spurious timers.
  * Returns the visible changes as [time, kind | 'hidden'] pairs.
  */
 const simulate = (
   steps: ReadonlyArray<readonly [number, SyncStatus]>,
-  until = 20_000,
+  { until = 20_000, extraTicks = [] as ReadonlyArray<number> } = {},
 ): Array<[number, Shown]> => {
   let state: State = initialState;
-  let timerAt: number | null = null;
   const trace: Array<[number, Shown]> = [];
   let last: Shown = 'hidden';
 
-  const apply = (next: State, now: number) => {
-    if (next !== state) {
-      state = next;
-      const ms = timeoutFor(state, now);
-      timerAt = ms == null ? null : now + ms;
-    }
+  const apply = (event: Parameters<typeof reduce>[1]) => {
+    state = reduce(state, event);
     const v = view(state);
     const shown: Shown = v.visible ? v.kind : 'hidden';
     if (shown !== last) {
-      trace.push([now, shown]);
+      trace.push([event.now, shown]);
       last = shown;
     }
   };
 
   const queue = [...steps];
+  const ticks = [...extraTicks].sort((a, b) => a - b);
+  let now = 0;
   for (;;) {
-    const nextStep = queue[0];
-    if (timerAt != null && (nextStep == null || timerAt < nextStep[0])) {
-      if (timerAt > until) break;
-      const now = timerAt;
-      apply(reduce(state, { type: 'timeout', now }), now);
-    } else if (nextStep != null) {
-      queue.shift();
-      const [now, status] = nextStep;
-      apply(reduce(state, { type: 'status', status, now }), now);
+    const deadline = deadlineOf(state);
+    const candidates = [
+      deadline == null ? Infinity : Math.max(deadline, now),
+      ticks[0] ?? Infinity,
+      queue[0]?.[0] ?? Infinity,
+    ];
+    now = Math.min(...candidates);
+    if (now === Infinity || now > until) break;
+    if (now === queue[0]?.[0]) {
+      const [, status] = queue.shift()!;
+      apply({ type: 'status', status, now });
     } else {
-      break;
+      if (now === ticks[0]) ticks.shift();
+      apply({ type: 'tick', now });
     }
   }
   return trace;
@@ -207,15 +206,88 @@ describe('reduce', () => {
 
   test('takes the next colour while invisible, before appearing', () => {
     // Faded out after green; the next slow edit shouldn't animate from green.
-    const arming = reduce(
-      { tag: 'hidden', kind: 'recovered' },
-      { type: 'status', status: 'pending', now: 0 },
-    );
+    const arming = reduce({ tag: 'hidden', kind: 'recovered' } as State, {
+      type: 'status',
+      status: 'pending',
+      now: 0,
+    });
     expect(view(arming)).toEqual({ visible: false, kind: 'pending' });
   });
 
   test('keeps the last colour while fading out', () => {
-    const hidden = reduce({ tag: 'recovered' }, { type: 'timeout', now: 0 });
+    const hidden = reduce(
+      { tag: 'recovered', hideAt: 0 },
+      { type: 'tick', now: 0 },
+    );
     expect(view(hidden)).toEqual({ visible: false, kind: 'recovered' });
+  });
+});
+
+describe('ticks', () => {
+  const timelines: ReadonlyArray<ReadonlyArray<readonly [number, SyncStatus]>> =
+    [
+      [
+        [0, 'pending'],
+        [1200, 'synced'],
+        [1300, 'pending'],
+        [1400, 'synced'],
+      ],
+      [
+        [0, 'offline'],
+        [5000, 'pending'],
+        [8000, 'synced'],
+      ],
+      [
+        [0, 'pending'],
+        [2000, 'offline'],
+        [2500, 'pending'],
+        [4000, 'synced'],
+      ],
+      [
+        [0, 'offline'],
+        [5000, 'synced'],
+        [5500, 'offline'],
+        [9000, 'synced'],
+      ],
+    ];
+
+  test('extra ticks at any time never change the outcome', () => {
+    const everyFewMs = Array.from({ length: 2000 }, (_, i) => i * 7 + 3);
+    for (const steps of timelines) {
+      expect(simulate(steps, { extraTicks: everyFewMs })).toEqual(
+        simulate(steps),
+      );
+    }
+  });
+
+  test("a stale tick from the previous state can't skip the offline delay", () => {
+    // Gray dot, sync done (holding until 1800), then offline at 1700. A tick
+    // left over from the holding deadline must not turn it amber early.
+    expect(
+      simulate(
+        [
+          [0, 'pending'],
+          [1200, 'synced'],
+          [1700, 'offline'],
+        ],
+        { extraTicks: [1800] },
+      ),
+    ).toEqual([
+      [1000, 'pending'],
+      [3200, 'offline'],
+    ]);
+  });
+
+  test('a late tick still times transitions from the deadline', () => {
+    // Shown at 1000 (the deadline), even though the first tick is at 1500.
+    const state = reduce(
+      reduce(initialState, {
+        type: 'status',
+        status: 'pending',
+        now: 0,
+      }),
+      { type: 'tick', now: 1500 },
+    );
+    expect(state).toMatchObject({ tag: 'pending', since: 1000 });
   });
 });
