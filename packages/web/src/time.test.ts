@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { convert, LocalDate, nativeJs } from '@js-joda/core';
 import {
   formatTimeForDisplay,
-  formatZoned,
   IsoDateTime,
   now,
   parseDateTime,
@@ -85,7 +84,7 @@ describe(`time helpers (TZ=${TZ || 'unset'}, Intl zone ${deviceZone})`, () => {
           // the pre-transition offset would give.
           expect(out > `${iso}T${expectedWall}`).toBe(true);
         }
-        expect(formatZoned(parsed)).toBe(out);
+        expect(Date.parse(out.replace(/\[.*\]$/, ''))).toBe(parsed.getTime());
       }
     }
   });
@@ -183,12 +182,6 @@ describe(`time helpers (TZ=${TZ || 'unset'}, Intl zone ${deviceZone})`, () => {
     expect(m![8]).toBe(deviceZone);
     const instant = Date.parse(out.replace(/\[.*\]$/, ''));
     expect(Math.abs(instant - before)).toBeLessThan(2000);
-  });
-
-  test('formatZoned uses the native offset at that instant', () => {
-    const d = new Date(Date.UTC(2026, 6, 1, 12, 0, 0));
-    const out = formatZoned(d);
-    expect(Date.parse(out.replace(/\[.*\]$/, ''))).toBe(d.getTime());
   });
 
   describe('parseDateTime', () => {

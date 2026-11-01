@@ -62,7 +62,7 @@ const formatOffset = (dt: Date): string => {
 };
 
 /** Formats an instant in the device zone. Always includes seconds, never fractions. */
-export const formatZoned = (dt: Date): IsoDateTime => {
+const formatZoned = (dt: Date): IsoDateTime => {
   const [y, mo, d] = [dt.getFullYear(), dt.getMonth() + 1, dt.getDate()];
   const [h, mi, se] = [dt.getHours(), dt.getMinutes(), dt.getSeconds()];
   const date = `${p4(y)}-${p2(mo)}-${p2(d)}`;
