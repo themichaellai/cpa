@@ -70,9 +70,12 @@ const useBubble = (enabled: boolean) => {
   const rootRef = useRef<HTMLSpanElement>(null);
   const open = enabled && (hovered || pinned);
 
-  // Reset when the indicator hides so it doesn't reopen by itself later.
-  // pointerleave may not fire once the button goes pointer-events-none.
+  // While hidden, make the whole indicator inert: no hover (the wrapper's box
+  // would otherwise still get pointer events) and no keyboard focus left on
+  // an invisible button. Set via the DOM because @types/react 18 lacks the
+  // `inert` prop. Also reset so the bubble doesn't reopen by itself later.
   useEffect(() => {
+    if (rootRef.current) rootRef.current.inert = !enabled;
     if (!enabled) {
       setPinned(false);
       setHovered(false);

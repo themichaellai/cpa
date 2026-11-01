@@ -14,7 +14,9 @@ type Shown = Kind | 'hidden';
 
 /**
  * Runs the machine against a fake clock: applies each [time, status] step and
- * fires timeouts as they come due (the way SyncIndicator's effects do).
+ * fires timeouts as they come due (the way SyncIndicator's effects do). On a
+ * same-millisecond tie the status step goes first; in React either could, so
+ * tests avoid ties.
  * Returns the visible changes as [time, kind | 'hidden'] pairs.
  */
 const simulate = (
@@ -201,6 +203,15 @@ describe('reduce', () => {
     expect(reduce(arming, { type: 'status', status: 'offline', now: 1 })).toBe(
       arming,
     );
+  });
+
+  test('takes the next colour while invisible, before appearing', () => {
+    // Faded out after green; the next slow edit shouldn't animate from green.
+    const arming = reduce(
+      { tag: 'hidden', kind: 'recovered' },
+      { type: 'status', status: 'pending', now: 0 },
+    );
+    expect(view(arming)).toEqual({ visible: false, kind: 'pending' });
   });
 
   test('keeps the last colour while fading out', () => {

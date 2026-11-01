@@ -5,6 +5,7 @@
  *   hidden   ─pending→ arming(pending) ─1s→   pending (gray)
  *   hidden   ─offline→ arming(offline) ─1.5s→ offline (amber)
  *   arming   ─synced→  hidden
+ *   arming   ─other non-synced status→ arming(that status), delay restarts
  *   pending  ─synced→  holding ─rest of 800ms→ hidden
  *                      (or recovered, if it came from offline)
  *   pending  ─offline→ pending(goingOffline) ─1.5s→ offline
@@ -32,8 +33,10 @@ export const RECOVERED_MS = 1500;
 export type State =
   // Not visible. `kind` is the last colour shown, kept while the dot fades out.
   | { tag: 'hidden'; kind: Kind }
-  // Not visible yet; waiting out the show delay before showing `next`.
-  | { tag: 'arming'; next: 'pending' | 'offline'; kind: Kind }
+  // Not visible yet; waiting out the show delay before showing `next`. The
+  // dot takes `next`'s colour now, while invisible, so it doesn't animate
+  // from the previous colour when it appears.
+  | { tag: 'arming'; next: 'pending' | 'offline' }
   // Gray. `since` = when the dot appeared, for the minimum visible time.
   | {
       tag: 'pending';
@@ -92,10 +95,10 @@ export const reduce = (state: State, event: Event): State => {
       if (status === 'synced') {
         return state.tag === 'hidden'
           ? state
-          : { tag: 'hidden', kind: state.kind };
+          : { tag: 'hidden', kind: state.next };
       }
       if (state.tag === 'arming' && state.next === status) return state;
-      return { tag: 'arming', next: status, kind: state.kind };
+      return { tag: 'arming', next: status };
     }
     case 'pending':
       if (status === 'synced') {
@@ -139,8 +142,9 @@ export const timeoutFor = (state: State, now: number): number | null => {
 export const view = (state: State): { visible: boolean; kind: Kind } => {
   switch (state.tag) {
     case 'hidden':
-    case 'arming':
       return { visible: false, kind: state.kind };
+    case 'arming':
+      return { visible: false, kind: state.next };
     case 'pending':
     case 'holding':
       return { visible: true, kind: 'pending' };
