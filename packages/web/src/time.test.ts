@@ -1,4 +1,5 @@
-// Run under several device zones with `bun run test` (see scripts/test-tz.ts).
+// `bun run test` runs this in the current zone; `bun run test:tz` runs it under
+// several device zones (see scripts/test-tz.ts).
 // Optional: set JSJODA_GOLDEN_DIR to a directory of <Zone_Name>.json files
 // captured from js-joda + @js-joda/timezone to compare zonedAt output exactly.
 import { describe, expect, test } from 'bun:test';
