@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { LocalDate } from '@js-joda/core';
 import { Button, Card, ContextMenu, Flex, Switch } from '@radix-ui/themes';
 import clsx from 'clsx';
@@ -34,9 +34,15 @@ const Pooper: React.FC<{
     () => dayRep.map((d) => d.poops).orDefault([]),
     [dayRep],
   );
+  // Only cards added from this screen animate in. Cards that load with the
+  // day (on mount or when switching dates) appear instantly.
+  const [addedPoopIds, setAddedPoopIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const addPoop = useCallback(() => {
     const repId = dayRep.map((d) => d.id).orDefault(crypto.randomUUID());
     const poopId = crypto.randomUUID();
+    setAddedPoopIds((ids) => new Set(ids).add(poopId));
     rep?.mutate.addPoop({
       id: repId,
       date: date.toString() as IsoDate,
@@ -85,14 +91,14 @@ const Pooper: React.FC<{
             });
           });
         };
-        const dayId = dayRep.map((d) => d.id).orDefault('unknown');
         return (
-          <ContextMenu.Root key={`${dayId}-${idx}`}>
+          <ContextMenu.Root key={poop.id}>
             <ContextMenu.Trigger>
               <Card
                 className={clsx(
                   poops.length === idx + 1 ? '' : 'mb-2',
                   'select-none',
+                  addedPoopIds.has(poop.id) && 'poop-card-enter',
                 )}
               >
                 <Flex align="center" gap="1" className="mb-4 select-none">
@@ -123,7 +129,7 @@ const Pooper: React.FC<{
           </ContextMenu.Root>
         );
       }),
-    [poops, dayRep, rep, date],
+    [poops, dayRep, rep, date, addedPoopIds],
   );
 
   return (
