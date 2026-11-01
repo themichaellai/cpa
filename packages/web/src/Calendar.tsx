@@ -3,6 +3,7 @@ import { Button } from '@radix-ui/themes';
 import Cal from 'react-calendar';
 
 import ChevronButton from './components/ChevronButton';
+import SyncIndicator from './components/SyncIndicator';
 import { isPoopless, useDays } from './store/days';
 
 const toLocalDate = (d: Date) => LocalDate.from(nativeJs(d));
@@ -33,7 +34,10 @@ function Calendar({
   return (
     <div className="calendar">
       <div className="flex items-center pl-2">
-        <h2 className="flex-1 text-[18px] font-bold">{monthLabel}</h2>
+        <div className="flex flex-1 items-center">
+          <h2 className="text-[18px] font-bold">{monthLabel}</h2>
+          <SyncIndicator />
+        </div>
         {showToday ? (
           <Button variant="soft" size="1" onClick={() => onChange(today)}>
             Today

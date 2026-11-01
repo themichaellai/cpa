@@ -333,3 +333,68 @@ export const ReplicacheWrapper: React.FC<{
     </ReplicacheContext.Provider>
   );
 };
+
+export type SyncStatus = 'synced' | 'pending' | 'offline';
+
+/**
+ * Attaches Replicache's sync / online listeners. Kept outside the hook so the
+ * React compiler doesn't flag assigning properties on the Replicache instance.
+ * Replicache only supports a single onSync / onOnlineChange listener.
+ */
+const listenToSync = (
+  rep: Replicache<typeof mutators>,
+  onSyncDone: () => void,
+  onOnlineChange: (online: boolean) => void,
+): (() => void) => {
+  const unwatch = rep.experimentalWatch(onSyncDone);
+  rep.onSync = (syncing) => {
+    if (!syncing) onSyncDone();
+  };
+  rep.onOnlineChange = onOnlineChange;
+  onOnlineChange(rep.online);
+  return () => {
+    unwatch();
+    rep.onSync = null;
+    rep.onOnlineChange = null;
+  };
+};
+
+/**
+ * Reports whether there are local mutations the server hasn't confirmed yet.
+ * Re-checks after every local write (experimentalWatch) and after every
+ * push/pull finishes (onSync), since a pull can confirm mutations without
+ * changing any data.
+ */
+export const useSyncStatus = (): {
+  status: SyncStatus;
+  pendingCount: number;
+} => {
+  const rep = useReplicache();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [online, setOnline] = useState(true);
+
+  useEffect(() => {
+    if (rep == null) {
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      rep
+        .experimentalPendingMutations()
+        .then((m) => {
+          if (!cancelled) setPendingCount(m.length);
+        })
+        .catch(() => {});
+    };
+    const stop = listenToSync(rep, refresh, setOnline);
+    refresh();
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [rep]);
+
+  const status: SyncStatus =
+    pendingCount === 0 ? 'synced' : online ? 'pending' : 'offline';
+  return { status, pendingCount };
+};
