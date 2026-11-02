@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { ReadonlyJSONObject, Replicache, WriteTransaction } from 'replicache';
 
+import { pullAfterPush } from './pullAfterPush';
 import { useUserToken } from './store/user';
 import { IsoDate } from './time';
 
@@ -264,7 +265,7 @@ const newRep = ({
   userKey: string;
   hashedKey: string;
 }) => {
-  return new Replicache({
+  const rep = new Replicache({
     name: `cpa-${hashedKey}`,
     pushURL: `${REPLICACHE_ENDPOINT}/push`,
     pullURL: `${REPLICACHE_ENDPOINT}/pull`,
@@ -272,6 +273,8 @@ const newRep = ({
     mutators,
     pullInterval: 20000,
   });
+  pullAfterPush(rep);
+  return rep;
 };
 
 const ReplicacheContext = createContext<
