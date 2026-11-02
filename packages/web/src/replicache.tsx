@@ -283,6 +283,11 @@ const newRep = ({
  * Without a server poke, that left edits "waiting to sync" until the next
  * interval pull (up to 20s). Wraps the default pusher rather than replacing
  * it, so push behaviour is unchanged.
+ *
+ * Only a 200 triggers the pull: the server returns 500 if any mutation in the
+ * batch fails, and then the failed one stays pending regardless. Mutation
+ * recovery for other client groups also goes through this pusher, so it
+ * causes one extra (harmless) pull for this client group.
  */
 const pullAfterPush = (rep: Replicache<typeof mutators>) => {
   const push = rep.pusher;
