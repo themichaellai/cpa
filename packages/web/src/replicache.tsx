@@ -264,7 +264,7 @@ const newRep = ({
   userKey: string;
   hashedKey: string;
 }) => {
-  return new Replicache({
+  const rep = new Replicache({
     name: `cpa-${hashedKey}`,
     pushURL: `${REPLICACHE_ENDPOINT}/push`,
     pullURL: `${REPLICACHE_ENDPOINT}/pull`,
@@ -272,6 +272,29 @@ const newRep = ({
     mutators,
     pullInterval: 20000,
   });
+  pullAfterPush(rep);
+  return rep;
+};
+
+/**
+ * Pull right after every successful push. Replicache only treats a local
+ * mutation as confirmed (removing it from pendingMutations) once a pull sees
+ * the server's lastMutationID, and it never pulls after a push on its own.
+ * Without a server poke, that left edits "waiting to sync" until the next
+ * interval pull (up to 20s). Wraps the default pusher rather than replacing
+ * it, so push behaviour is unchanged.
+ */
+const pullAfterPush = (rep: Replicache<typeof mutators>) => {
+  const push = rep.pusher;
+  rep.pusher = async (req, requestID) => {
+    const result = await push(req, requestID);
+    if (result.httpRequestInfo.httpStatusCode === 200) {
+      // Not awaited: the push shouldn't wait on the pull. Pull errors are
+      // already retried and reported through onSync / onOnlineChange.
+      rep.pull().catch(() => {});
+    }
+    return result;
+  };
 };
 
 const ReplicacheContext = createContext<
