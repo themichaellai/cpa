@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { ReadonlyJSONObject, Replicache, WriteTransaction } from 'replicache';
 
+import { pullAfterPush } from './pullAfterPush';
 import { useUserToken } from './store/user';
 import { IsoDate } from './time';
 
@@ -274,32 +275,6 @@ const newRep = ({
   });
   pullAfterPush(rep);
   return rep;
-};
-
-/**
- * Pull right after every successful push. Replicache only treats a local
- * mutation as confirmed (removing it from pendingMutations) once a pull sees
- * the server's lastMutationID, and it never pulls after a push on its own.
- * Without a server poke, that left edits "waiting to sync" until the next
- * interval pull (up to 20s). Wraps the default pusher rather than replacing
- * it, so push behaviour is unchanged.
- *
- * Only a 200 triggers the pull: the server returns 500 if any mutation in the
- * batch fails, and then the failed one stays pending regardless. Mutation
- * recovery for other client groups also goes through this pusher, so it
- * causes one extra (harmless) pull for this client group.
- */
-const pullAfterPush = (rep: Replicache<typeof mutators>) => {
-  const push = rep.pusher;
-  rep.pusher = async (req, requestID) => {
-    const result = await push(req, requestID);
-    if (result.httpRequestInfo.httpStatusCode === 200) {
-      // Not awaited: the push shouldn't wait on the pull. Pull errors are
-      // already retried and reported through onSync / onOnlineChange.
-      rep.pull().catch(() => {});
-    }
-    return result;
-  };
 };
 
 const ReplicacheContext = createContext<
