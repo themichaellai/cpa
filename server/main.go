@@ -88,6 +88,9 @@ func run() error {
 	setPragmas(db)
 
 	e := echo.New()
+	// Behind Fly's proxy the visitor's IP is the last untrusted entry in
+	// X-Forwarded-For. Without this, Echo logs the proxy's address.
+	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{env.CorsOrigin},
